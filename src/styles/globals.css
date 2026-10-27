@@ -1,0 +1,575 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+    ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+  --ink: #2a1b12;
+  --foam: #f6ead4;
+  --soil: #6e4428;
+  --crust: #c4a06a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #2a1a12;
+  color: var(--foam);
+  font-family: ui-rounded, "PingFang SC", "Hiragino Maru Gothic ProN", "Hiragino Sans GB", sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--foam);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button:focus-visible {
+  outline: 3px solid #f0c14a;
+  outline-offset: 2px;
+}
+
+.loam-app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse at 50% -10%, #f3d7a4 0%, transparent 42%),
+    radial-gradient(circle at 80% 110%, #1a100c 0%, transparent 40%),
+    linear-gradient(#c4894f, #6a4128 28%, #3a2418 70%, #24160f);
+}
+
+.loam-app.is-play {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.loam-loading {
+  margin: auto;
+  font-size: 1.3rem;
+}
+
+.loam-hero,
+.loam-top,
+.loam-foot,
+.loam-stratum-copy {
+  padding: 1.25rem 1.25rem 0.4rem;
+}
+
+.loam-mark {
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.loam-mark span,
+.loam-kicker {
+  color: #f0c14a;
+}
+
+.loam-hero h1,
+.loam-top h1,
+.loam-stratum h2,
+.loam-card h2,
+.loam-jigsaw h1 {
+  margin: 0.15rem 0;
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  font-weight: 760;
+  letter-spacing: -0.03em;
+}
+
+.loam-hero p,
+.loam-hint,
+.loam-foot,
+.loam-stratum-copy p,
+.loam-keys {
+  color: #f3e2c4;
+  line-height: 1.45;
+}
+
+.loam-go {
+  margin-top: 0.8rem;
+  background: #e07a45;
+  color: #2a1b12;
+  font-weight: 700;
+}
+
+.loam-shaft {
+  width: min(720px, 100%);
+  margin: 0 auto 3rem;
+}
+
+.loam-stratum {
+  margin: 1rem 0.8rem;
+  padding-bottom: 1rem;
+  border-radius: 1.4rem;
+  background: color-mix(in srgb, var(--stratum, #8a5a32) 88%, black);
+  box-shadow: inset 0 0 0 1px #ffffff1a;
+}
+
+.loam-stratum.is-soil { --stratum: #a56b3d; }
+.loam-stratum.is-runnel { --stratum: #3f6f78; }
+.loam-stratum.is-nursery { --stratum: #8d5a3a; }
+.loam-stratum.is-shear { --stratum: #3a241c; }
+
+.loam-stratum ol {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem 0.9rem 0.2rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.loam-hole {
+  width: 100%;
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  text-align: left;
+  background: linear-gradient(#6b442ccc, #3a2418cc);
+  color: var(--foam);
+  border-radius: 1rem;
+  padding: 0.45rem 0.7rem;
+  box-shadow: inset 0 1px 0 #f3d7a433, 0 4px 0 #24160f55;
+}
+
+.loam-hole strong,
+.loam-hole small {
+  display: block;
+}
+
+.loam-hole small {
+  color: #f3e2c4cc;
+  font-size: 0.82rem;
+}
+
+.loam-mouth {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 45%, #1a120c 0 42%, #6b4428 44% 100%);
+  flex: none;
+}
+
+.loam-hole.is-done .loam-mouth {
+  background:
+    radial-gradient(circle at 50% 42%, #f0c14a 0 28%, #1a120c 30% 46%, #6ea34a 48% 100%);
+}
+
+.loam-hole.is-locked {
+  background: #0003;
+}
+
+.loam-hole.is-current {
+  box-shadow: 0 0 0 2px #f0c14a, inset 0 1px 0 #f3d7a455;
+}
+
+.loam-rest {
+  margin: 0.7rem 0.9rem 0.2rem;
+  background: transparent;
+  color: var(--foam);
+  border: 1px dashed #f3e2c488;
+}
+
+.loam-top {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.loam-top h1 {
+  font-size: 1.5rem;
+}
+
+.loam-kicker,
+.loam-hint,
+.loam-keys {
+  margin: 0.2rem 1rem;
+}
+
+.loam-stage,
+.loam-frame {
+  min-height: 0;
+}
+
+.loam-playbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.85rem 1rem 0;
+}
+
+.loam-play-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.loam-play-title h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  letter-spacing: -0.03em;
+}
+
+.loam-play-title .loam-kicker,
+.loam-play-title .loam-hint {
+  margin: 0;
+}
+
+.loam-play-title .loam-hint {
+  color: #fff4dfcc;
+  font-size: 0.92rem;
+}
+
+.loam-play-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.loam-icon {
+  width: 2.7rem;
+  height: 2.7rem;
+  padding: 0;
+  border-radius: 0.9rem;
+  background: #fff6ea;
+  color: #3a2418;
+  font-size: 1.15rem;
+  box-shadow: 0 4px 0 #c4894f;
+}
+
+.loam-icon:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #c4894f;
+}
+
+.loam-stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 0.6rem 0.8rem 1rem;
+  position: relative;
+}
+
+.loam-snip {
+  position: absolute;
+  left: 50%;
+  bottom: 0.8rem;
+  transform: translateX(-50%);
+  background: #fff6ea;
+  color: #3a2418;
+  font-weight: 750;
+  box-shadow: 0 5px 0 #c4894f;
+}
+
+.loam-touch {
+  display: none;
+  grid-template-columns: repeat(3, 3.1rem);
+  grid-template-areas: ". up ." "left down right";
+  gap: 0.35rem;
+  justify-content: center;
+  padding: 0 0 1rem;
+}
+
+.loam-touch .loam-up { grid-area: up; }
+.loam-touch button:nth-child(2) { grid-area: left; }
+.loam-touch button:nth-child(3) { grid-area: down; }
+.loam-touch button:nth-child(4) { grid-area: right; }
+
+.loam-touch button {
+  width: 3.1rem;
+  height: 3.1rem;
+  padding: 0;
+  border-radius: 1rem;
+  background: #fff6eacc;
+  box-shadow: 0 4px 0 #c4894f;
+}
+
+@media (pointer: coarse) {
+  .loam-touch { display: grid; }
+}
+
+.loam-frame {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.loam-board {
+  position: relative;
+  border-radius: 1.35rem;
+  overflow: hidden;
+  touch-action: none;
+  background: #6a4128;
+  box-shadow:
+    0 18px 0 #3a2418,
+    0 28px 40px #1a100c66,
+    inset 0 0 0 6px #8a5a38;
+  cursor: pointer;
+}
+
+.loam-board.is-shake {
+  animation: loam-shake 0.22s linear;
+}
+
+.loam-board.is-bonk {
+  animation: loam-bonk 0.12s ease;
+}
+
+.loam-grid {
+  display: grid;
+}
+
+.loam-cell {
+  position: relative;
+}
+
+.loam-floor {
+  background:
+    radial-gradient(circle at 50% 42%, #f6e2b8 0%, #e7c98d 62%, #d2ae68 100%);
+  box-shadow: inset 0 -7px 8px #b18445aa, inset 0 0 0 1px #fff3  ;
+}
+
+.loam-dirt {
+  background:
+    radial-gradient(circle at 38% 32%, #f0c56a, #d0923d 58%, #a86a28);
+  box-shadow: inset 0 3px 0 #ffe7a866, inset 0 -6px 8px #6a3e18aa;
+}
+
+.loam-mound,
+.loam-mound::before,
+.loam-mound::after,
+.loam-clod,
+.loam-clod::before {
+  position: absolute;
+  border-radius: 50%;
+  content: "";
+}
+
+.loam-mound {
+  width: 28%;
+  height: 18%;
+  left: 18%;
+  top: 28%;
+  background: #c48434;
+}
+.loam-mound::before { width: 16px; height: 10px; left: 10px; top: 8px; background: #e7b45a; }
+.loam-mound::after { width: 8px; height: 8px; left: 18px; top: 16px; background: #8a5424; }
+
+.loam-wall {
+  background: radial-gradient(circle at 30% 24%, #c4845a, #7a4630 46%, #4e2c1e 100%);
+  box-shadow: inset 0 3px 0 #e7b48a55, inset 0 -10px 12px #2a140eaa;
+}
+
+.loam-clod {
+  width: 22%;
+  height: 16%;
+  left: 58%;
+  top: 22%;
+  background: #d7a27a;
+  opacity: 0.55;
+}
+.loam-clod::before {
+  width: 10px;
+  height: 8px;
+  left: -14px;
+  top: 12px;
+  background: #3a2016;
+  opacity: 0.35;
+}
+.loam-water {
+  background: repeating-linear-gradient(90deg, #2f7f96 0 8px, #8fd0df 8px 14px);
+  animation: loam-flow 0.8s linear infinite;
+}
+.loam-water.is-left { animation-direction: reverse; }
+.loam-water.is-down {
+  background: repeating-linear-gradient(#2f7f96 0 8px, #8fd0df 8px 14px);
+  animation-name: loam-flow-down;
+}
+.loam-water.is-up {
+  background: repeating-linear-gradient(#2f7f96 0 8px, #8fd0df 8px 14px);
+  animation-name: loam-flow-down;
+  animation-direction: reverse;
+}
+
+.loam-speck,
+.loam-speck::before,
+.loam-speck::after {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #6b4428aa;
+  content: "";
+}
+.loam-speck { left: 30%; top: 40%; }
+.loam-speck::before { left: 8px; top: -6px; }
+.loam-speck::after { left: -6px; top: 7px; }
+
+.loam-glyph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.loam-worms {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.loam-bubble {
+  font-size: 18px;
+  fill: #fffaf3;
+  font-family: var(--font-sans);
+}
+
+.is-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: loam-blink 4.5s infinite;
+}
+
+.loam-controls {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: center;
+  padding: 0.4rem 0.8rem 0.8rem;
+}
+
+.loam-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 2.7rem);
+  grid-template-areas: ". up ." "left down right";
+  gap: 0.3rem;
+}
+
+.loam-up { grid-area: up; }
+.loam-pad button:nth-child(2) { grid-area: left; }
+.loam-pad button:nth-child(3) { grid-area: down; }
+.loam-pad button:nth-child(4) { grid-area: right; }
+
+.loam-pad button,
+.loam-verbs button {
+  min-width: 2.7rem;
+  background: #f6ead4;
+}
+
+.loam-verbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.loam-card {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(24rem, calc(100% - 2rem));
+  background: #f6ead4;
+  color: var(--ink);
+  border-radius: 1.2rem;
+  padding: 1.1rem 1.2rem 1.2rem;
+  box-shadow: 0 20px 60px #0008;
+  z-index: 5;
+}
+
+.loam-card p { margin: 0.4rem 0 0.9rem; }
+
+.loam-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.loam-card button { background: #e07a45; }
+
+.loam-jigsaw {
+  width: min(520px, 100%);
+  margin: 0 auto;
+}
+
+.loam-pieces {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  padding: 1rem;
+}
+
+.loam-pieces button {
+  padding: 0;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  background: #2a1b12;
+  aspect-ratio: 1;
+}
+
+.loam-pieces svg { display: block; width: 100%; height: 100%; }
+.loam-pieces .is-picked { outline: 3px solid #f0c14a; }
+
+.loam-foot { padding-bottom: 2rem; font-size: 0.92rem; }
+
+@keyframes loam-wiggle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes loam-shake {
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+
+@keyframes loam-bonk {
+  50% { transform: scale(0.985); }
+}
+
+@keyframes loam-flow {
+  to { background-position: 22px 0; }
+}
+
+@keyframes loam-flow-down {
+  to { background-position: 0 22px; }
+}
+
+@keyframes loam-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loam-hole.is-current,
+  .loam-water,
+  .is-blink,
+  .loam-board.is-shake,
+  .loam-board.is-bonk {
+    animation: none;
+  }
+}
