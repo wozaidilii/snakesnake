@@ -39,6 +39,7 @@ export function GameApp() {
   const [shake, setShake] = useState(false);
   const [bonk, setBonk] = useState(false);
   const [singing, setSinging] = useState(false);
+  const [burst, setBurst] = useState<{ id: number; kind: string } | null>(null);
 
   const viewRef = useRef(view);
   const stateRef = useRef(state);
@@ -111,6 +112,9 @@ export function GameApp() {
     setPast(stack);
     setState(next);
     playSound(sound);
+    if (sound === "eat" || sound === "gold" || sound === "push" || sound === "grow" || sound === "cut" || sound === "splash") {
+      setBurst({ id: next.moves, kind: sound });
+    }
     if (sound === "cut") {
       setShake(true);
       window.setTimeout(() => setShake(false), 240);
@@ -323,6 +327,7 @@ export function GameApp() {
           shake={shake}
           bonk={bonk}
           singing={singing}
+          burst={burst}
           onMove={move}
           onFocusWorm={(id) => {
             const current = stateRef.current;

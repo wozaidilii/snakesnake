@@ -33,7 +33,29 @@ const PALETTE = [
 type Pt = { x: number; y: number };
 type Track = { from: Pt[]; to: Pt[]; t0: number };
 
-const SLIDE_MS = 128;
+const SLIDE_MS = 150;
+
+function beadsAlong(points: Pt[], step: number): Pt[] {
+  const first = points[0];
+  if (!first) return [];
+  if (points.length === 1) return [];
+  const out: Pt[] = [];
+  for (let index = 0; index < points.length - 1; index++) {
+    const from = points[index];
+    const to = points[index + 1];
+    if (!from || !to) continue;
+    const distance = Math.hypot(to.x - from.x, to.y - from.y);
+    const count = Math.max(1, Math.round(distance / step));
+    for (let stepIndex = 0; stepIndex < count; stepIndex++) {
+      const t = stepIndex / count;
+      out.push({
+        x: from.x + (to.x - from.x) * t,
+        y: from.y + (to.y - from.y) * t,
+      });
+    }
+  }
+  return out;
+}
 
 function align(from: Pt[], to: Pt[]): Pt[] {
   if (from.length === to.length) return from;
@@ -53,27 +75,12 @@ function sample(track: Track, now: number): Pt[] {
   });
 }
 
-function spine(points: Pt[]): string {
-  const first = points[0];
-  if (!first || points.length < 2) return "";
-  let path = `M ${first.x} ${first.y}`;
-  for (let index = 1; index < points.length; index++) {
-    const prev = points[index - 1];
-    const curr = points[index];
-    if (!prev || !curr) continue;
-    const mid = { x: (prev.x + curr.x) / 2, y: (prev.y + curr.y) / 2 };
-    path += ` Q ${prev.x} ${prev.y} ${mid.x} ${mid.y}`;
-  }
-  const last = points[points.length - 1];
-  if (last) path += ` T ${last.x} ${last.y}`;
-  return path;
-}
-
 export function Board({
   state,
   shake,
   bonk,
   singing,
+  burst,
   onMove,
   onFocusWorm,
 }: {
@@ -81,6 +88,7 @@ export function Board({
   shake: boolean;
   bonk: boolean;
   singing: boolean;
+  burst: { id: number; kind: string } | null;
   onMove: (dir: Dir) => void;
   onFocusWorm: (id: string) => void;
 }) {
@@ -99,7 +107,7 @@ export function Board({
     const measure = () => {
       const rect = node.getBoundingClientRect();
       const next = Math.floor(
-        Math.min((rect.width - 36) / state.width, (rect.height - 36) / state.height, 84),
+        Math.min((rect.width - 64) / state.width, (rect.height - 64) / state.height, 84),
       );
       setSize(Math.max(28, next));
     };
@@ -183,9 +191,10 @@ export function Board({
 
   return (
     <div className="loam-frame" ref={frameRef}>
+      <div className={`loam-crust${shake ? " is-shake" : ""}${bonk ? " is-bonk" : ""}`}>
       <div
         ref={boardRef}
-        className={`loam-board${shake ? " is-shake" : ""}${bonk ? " is-bonk" : ""}`}
+        className="loam-board"
         style={{ width: size * state.width, height: size * state.height }}
         onPointerDown={(event) => {
           drag.current = { x: event.clientX, y: event.clientY };
@@ -218,7 +227,7 @@ export function Board({
             return (
               <div
                 key={`${x}-${y}`}
-                className={`loam-cell loam-${cell.terrain}${cell.terrain === "water" ? ` is-${cell.flow ?? "right"}` : ""}`}
+                className={`loam-cell loam-${cell.terrain} v${(x * 5 + y * 3) % 4}${cell.terrain === "water" ? ` is-${cell.flow ?? "right"}` : ""}${cell.fixture?.kind === "exit" && goalsReady(state) ? " is-lit" : ""}${cell.pickup?.kind === "gold" ? " is-prize" : ""}`}
                 style={{ width: size, height: size }}
               >
                 {cell.terrain === "dirt" ? <span className="loam-mound" /> : null}
@@ -248,7 +257,29 @@ export function Board({
             );
           })}
         </div>
+        {burst ? (
+          <div className="loam-pops" key={burst.id}>
+            {Array.from({ length: 6 }, (_, index) => (
+              <span
+                key={index}
+                className={`loam-pop is-${burst.kind}`}
+                style={{
+                  left: (active?.segments[0]?.x ?? 0) * size + size / 2,
+                  top: (active?.segments[0]?.y ?? 0) * size + size / 2,
+                  ["--dx" as string]: `${Math.cos((index / 6) * Math.PI * 2) * 28}px`,
+                  ["--dy" as string]: `${Math.sin((index / 6) * Math.PI * 2) * 22 - 8}px`,
+                }}
+              />
+            ))}
+          </div>
+        ) : null}
         <svg className="loam-worms" width={size * state.width} height={size * state.height}>
+          <defs>
+            <filter id="loam-grain">
+              <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" />
+            </filter>
+          </defs>
+          <rect width="100%" height="100%" filter="url(#loam-grain)" opacity="0.07" style={{ pointerEvents: "none" }} />
           {state.worms.map((worm, index) => {
             const track = tracks.current.get(worm.id);
             const body = track
@@ -269,15 +300,17 @@ export function Board({
             const pupil = stuck && activeWorm ? 0.14 : 0.09;
             const sliding = track ? now - track.t0 < SLIDE_MS : false;
             const stretch = sliding ? 1.06 : 1;
+            const beads = beadsAlong(body, radius * 0.62);
             return (
               <g key={worm.id}>
-                {body.length > 1 ? (
-                  <>
-                    <path d={spine(body)} fill="none" stroke="#2a160e" strokeOpacity="0.18" strokeWidth={radius * 2.15} strokeLinecap="round" strokeLinejoin="round" transform="translate(0 4)" />
-                    <path d={spine(body)} fill="none" stroke={paint.body} strokeWidth={radius * 2} strokeLinecap="round" strokeLinejoin="round" />
-                    <path d={spine(body)} fill="none" stroke={paint.belly} strokeWidth={radius * 0.92} strokeLinecap="round" strokeLinejoin="round" />
-                  </>
-                ) : null}
+                {beads.map((bead, beadIndex) => (
+                  <g key={beadIndex}>
+                    <circle cx={bead.x} cy={bead.y + 3} r={radius * 0.96} fill="#2a160e" opacity="0.14" />
+                    <circle cx={bead.x} cy={bead.y} r={radius * 0.98} fill={paint.body} />
+                    <ellipse cx={bead.x} cy={bead.y + radius * 0.22} rx={radius * 0.46} ry={radius * 0.28} fill={paint.belly} opacity="0.9" />
+                    <circle cx={bead.x - radius * 0.28} cy={bead.y - radius * 0.32} r={radius * 0.28} fill="#fff" opacity="0.16" />
+                  </g>
+                ))}
                 <g
                   transform={`translate(${head.x} ${head.y}) scale(${stretch} ${2 - stretch})`}
                   style={{ pointerEvents: "auto", cursor: "pointer" }}
@@ -296,8 +329,23 @@ export function Board({
                       fill={paint.body}
                     />
                   ) : null}
-                  <circle r={radius * 1.12} fill={paint.body} />
-                  <ellipse cy={radius * 0.18} rx={radius * 0.72} ry={radius * 0.48} fill={paint.belly} />
+                  <circle r={radius * 1.16} fill={paint.body} />
+                  <ellipse cx={-radius * 0.32} cy={-radius * 0.4} rx={radius * 0.42} ry={radius * 0.26} fill="#fff" opacity="0.28" />
+                  <ellipse
+                    cx={look === "left" ? -radius * 0.72 : look === "right" ? radius * 0.72 : 0}
+                    cy={look === "up" ? -radius * 0.72 : look === "down" ? radius * 0.72 : radius * 0.15}
+                    rx={radius * 0.34}
+                    ry={radius * 0.26}
+                    fill={paint.body}
+                  />
+                  <ellipse cy={radius * 0.22} rx={radius * 0.7} ry={radius * 0.42} fill={paint.belly} />
+                  <path
+                    d={`M ${-radius * 0.16} ${radius * 0.42} Q 0 ${radius * 0.58} ${radius * 0.16} ${radius * 0.42}`}
+                    fill="none"
+                    stroke="#6a3030"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                  />
                   <ellipse cx={-radius * 0.42} cy={radius * 0.28} rx={radius * 0.16} ry={radius * 0.1} fill={paint.cheek} opacity="0.85" />
                   <ellipse cx={radius * 0.42} cy={radius * 0.28} rx={radius * 0.16} ry={radius * 0.1} fill={paint.cheek} opacity="0.85" />
                   <g className={stuck && activeWorm ? undefined : "is-blink"}>
@@ -333,6 +381,7 @@ export function Board({
             );
           })}
         </svg>
+      </div>
       </div>
     </div>
   );
