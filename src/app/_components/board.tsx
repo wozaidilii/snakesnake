@@ -69,8 +69,6 @@ export function Board({ state, biome, bonk, animation, onMove, onFocusWorm, onFl
     return () => running.forEach((a) => a.cancel());
   }, [state, animation]);
   return <div className={`farm-land biome-${biome} ${state.won ? "is-celebrating" : ""} ${bonk ? "is-bonk" : ""}`}>
-    <div className="land-corner corner-a"><Sprite name="flower" /></div>
-    <div className="land-corner corner-b"><Sprite name="grass" /></div>
     <div ref={boardRef} className="farm-board" role="group" aria-label="农场棋盘，使用方向键或滑动移动" style={{ aspectRatio: `${state.width} / ${state.height}`, "--columns": state.width } as CSSProperties}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
@@ -144,6 +142,5 @@ export function Board({ state, biome, bonk, animation, onMove, onFocusWorm, onFl
       </div>
       <BoardEffects animation={animation} width={state.width} height={state.height} />
     </div>
-    <div className="garden-path" aria-hidden="true"><Sprite name="grass" /><span>小脚印，慢慢走</span><Sprite name="stone" /><Sprite name="flower" /></div>
   </div>;
 }

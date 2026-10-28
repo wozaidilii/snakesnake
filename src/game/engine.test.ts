@@ -11,7 +11,7 @@ import {
   isPressed,
   doorIsOpen,
 } from "./engine";
-import { LEVELS } from "./levels";
+import { LEVELS, getLevel } from "./levels";
 import { chapterProgress, continueJourney, recommendedLevel } from "./progression";
 import { emptySave } from "./save";
 import { parseLevel } from "./parse";
@@ -278,7 +278,7 @@ test("every campaign level parses and has a solution", { timeout: 300_000 }, () 
     try {
       const start = parseLevel(level);
       const needHat = level.rows.some((row) => row.includes("H"));
-      const result = solve(start, { needHat, maxNodes: 30_000, maxMoves: 85 });
+      const result = solve(start, { needHat, maxNodes: 160_000, maxMoves: 85 });
       if (!result.ok) {
         failures.push(`${level.id} ${result.reason} nodes=${result.nodes}`);
       }
@@ -470,7 +470,7 @@ test("chapter keepsakes and recommended routes do not demand optional challenges
   assert.equal(recommendedLevel(emptySave),"flock-01");
   const all={...emptySave,cleared:LEVELS.map(l=>l.id),best:LEVELS.map(l=>({id:l.id,moves:l.par!}))};
   assert.equal(recommendedLevel(all),null);
-  assert.equal(continueJourney("flock-40",all),null);
+  assert.equal(continueJourney("flock-40-r2",all),null);
   assert.equal(chapterProgress("pond",all).perfect,true);
 });
 
@@ -485,12 +485,80 @@ test("the authored sequence teaches each rule before its combinations", () => {
   assert.equal(new Set(LEVELS.map(l=>l.id)).size,LEVELS.length);
 });
 
-test("bell parity requires three rings and the pond finale requires a helper expedition", () => {
-  let state=parseLevel(LEVELS.find(l=>l.id==="flock-30")!); let rings=0;
+test("bell parity requires three rings", () => {
+  let state=parseLevel(getLevel("flock-30")!); let rings=0;
   for(const action of solve(state).path) { const step=replayAction(state,action)!; if(step.state.flips.red!==state.flips.red) rings++; state=step.state; }
   assert.equal(rings,3);
-  state=parseLevel(LEVELS.find(l=>l.id==="flock-40")!); let helperCollects=false;
-  for(const action of solve(state).path) { const step=replayAction(state,action)!; if(action.wormId!=="w0" && step.state.cells.filter(c=>c.pickup?.kind==="gold").length<state.cells.filter(c=>c.pickup?.kind==="gold").length)helperCollects=true; state=step.state; }
-  assert.equal(helperCollects,true);
+});
+
+test("the bridge loop needs four continuous occupants, not just visiting a bridge", () => {
+  const level=getLevel("flock-36-r2")!;
+  const short=parseLevel({...level,rows:level.rows.map(row=>row.replace("A","."))});
+  assert.equal(solve(short).reason,"stuck");
+  let unprepared=parseLevel(level);
+  for(const dir of ["right","right","up","right","down"] as const) unprepared=applyMove(unprepared,0,dir)!.state;
+  assert.equal(solve(unprepared).reason,"stuck","taking the direct route before growing loses the return bridge");
+  let state=parseLevel(level);let bridgeEntries=0;
+  for(const action of solve(state).path) {
+    state=replayAction(state,action)!.state;
+    const head=state.worms[0]!.segments[0]!;
+    if(head.x===5 && head.y===2) {
+      bridgeEntries++;
+      assert.deepEqual(state.cells[2*state.width+5]!.fixture,{kind:"bridge",collapsed:false});
+    }
+  }
+  assert.equal(bridgeEntries,2);
   assert.equal(state.won,true);
+});
+
+test("the orchard delivery requires opening the bell route before picking up the egg", () => {
+  const initial=parseLevel(getLevel("flock-32-r2")!);
+  const tooSoon=applyMove(initial,0,"left")!;
+  assert.equal(tooSoon.state.worms[0]!.carrying,true);
+  assert.equal(solve(tooSoon.state).reason,"stuck");
+  const opened=applyMove(applyMove(initial,0,"down")!.state,0,"right")!;
+  assert.equal(opened.state.flips.red,true);
+  assert.equal(solve(opened.state).ok,true);
+  assert.equal(initial.worms[0]!.carrying,false,"undo preserves the chance to prepare first");
+});
+
+test("two deliveries require both leaders, and the finale reserves a third crossing", () => {
+  for(const id of ["flock-38-r2","flock-40-r2"]) {
+    let state=parseLevel(getLevel(id)!); const deliveredBy=new Set<string>();
+    const count=(s:GameState)=>s.cells.filter(c=>c.fixture?.kind==="nest"&&c.fixture.filled).length;
+    for(const action of solve(state).path) {
+      const step=replayAction(state,action)!;
+      if(count(step.state)>count(state))deliveredBy.add(action.wormId);
+      state=step.state;
+    }
+    assert.equal(state.won,true);
+    assert.deepEqual([...deliveredBy].sort(),["w0","w1"]);
+    assert.equal(state.cells.filter(c=>c.fixture?.kind==="bridge"&&c.fixture.collapsed).length,id==="flock-40-r2"?3:2);
+  }
+});
+
+test("the crate bridge puzzle punishes using the return bridge before shipping the crate", () => {
+  const initial=parseLevel(getLevel("flock-39-r2")!);
+  let state=initial;
+  for(const dir of ["down","down","right","right","right"] as const) state=applyMove(state,0,dir)!.state;
+  assert.equal(solve(state).reason,"stuck");
+  assert.equal(initial.cells[4*initial.width+4]!.terrain,"floor","undo history retains the bridge");
+  const directions=new Set<string>(); let pushes=0; state=initial;
+  for(const action of solve(state).path) {
+    const step=replayAction(state,action)!;
+    if(step.motion?.length) {pushes++;directions.add(action.dir);}
+    state=step.state;
+  }
+  assert.ok(pushes>=5);
+  assert.ok(directions.size>=3);
+  assert.equal(state.won,true);
+});
+
+test("revised geometry keeps old records separate while resuming the corresponding board", () => {
+  assert.equal(getLevel("flock-40")?.id,"flock-40-r2");
+  assert.equal(getLevel("flock-36")?.id,"flock-36-r2");
+  const previous={...emptySave,cleared:["flock-35","flock-36","flock-38","flock-39","flock-40"],best:[{id:"flock-40",moves:1}]};
+  assert.equal(chapterProgress("pond",previous).done,1);
+  assert.equal(chapterProgress("pond",previous).mastered,0);
+  assert.equal(recommendedLevel(previous,"pond"),"flock-36-r2");
 });

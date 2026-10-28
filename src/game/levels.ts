@@ -10,11 +10,11 @@ export const WORLDS: World[] = [
   { id: "nursery", name: "麦田摇篮", depth: "03", subtitle: "把珍贵的，轻轻带回", blurb: "先认识抱蛋与泥塘，再考虑空手站位、送蛋顺序与多队调度。最后一道组合挑战可以留待以后。", icon: "egg", souvenir: "eggBasket", reward: "薰衣草编篮" },
   { id: "shear", name: "溪畔归途", depth: "04", subtitle: "上游出发，下游接应", blurb: "水流教学之后，规划落岸站位、双箱运输与多队协作。", icon: "flower", souvenir: "sailboat", reward: "蓝帆小木船" },
   { id: "orchard", name: "风铃果园", depth: "05", subtitle: "响一次，换一种可能", blurb: "风铃会记住开关。探索奇偶、回程和双铃顺序，再和守门、运蛋、水路组合。", icon: "bell", souvenir: "chimeBadge", reward: "花间小风铃" },
-  { id: "pond", name: "月光荷塘", depth: "06", subtitle: "出发之前，留好归路", blurb: "荷叶等最后一位离开才收起。选择两桥的顺序，安排谁过河，谁留下迎接伙伴。", icon: "bridge", souvenir: "lotusLantern", reward: "月光莲花灯" },
+  { id: "pond", name: "月光荷塘", depth: "06", subtitle: "出发之前，留好归路", blurb: "荷叶等最后一位离开才收起。先发现长队留桥，再分配跨岸任务，最后为回程留下通路。", icon: "bridge", souvenir: "lotusLantern", reward: "月光莲花灯" },
 ];
 export const TIERS = WORLDS.map((world, i) => ({ id: String(i + 1), name: world.name, blurb: world.blurb }));
 export const LEVELS: Level[] = CAMPAIGN.map((level) => ({ ...level, par: PARS[level.id] }));
 export const levelsInTier = (tier: string) => LEVELS.filter((level) => level.rank === tier);
 export const levelsIn = (world: WorldId) => LEVELS.filter((level) => level.world === world);
-export const getLevel = (id: string) => LEVELS.find((level) => level.id === id);
+export const getLevel = (id: string) => LEVELS.find((level) => level.id === id) ?? LEVELS.find((level) => level.id === `${id}-r2`);
 export const nextLevelId = (id: string) => LEVELS[LEVELS.findIndex((level) => level.id === id) + 1]?.id ?? null;

@@ -3576,19 +3576,19 @@
     ]
   },
   {
-    "id": "flock-32",
+    "id": "flock-32-r2",
     "name": "抱蛋听风",
     "chapter": "风铃果园",
-    "insight": "空手能走的开关近路，抱蛋时未必能走。",
+    "insight": "拿起珍宝之前，先完成只有空手时才能走的那一小段。",
     "tutorial": false,
     "difficulty": 3,
     "challenge": false,
-    "par": 17,
+    "par": 22,
     "ablations": [
       {
         "mechanic": "bell",
         "result": "stuck",
-        "exploredStates": 22
+        "exploredStates": 20
       }
     ],
     "planning": {
@@ -3597,15 +3597,23 @@
       "fledges": 0,
       "switches": 0
     },
-    "exploredStates": 118,
+    "exploredStates": 142,
     "solution": [
+      {
+        "wormId": "w0",
+        "dir": "down"
+      },
       {
         "wormId": "w0",
         "dir": "right"
       },
       {
         "wormId": "w0",
-        "dir": "right"
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "up"
       },
       {
         "wormId": "w0",
@@ -3621,11 +3629,23 @@
       },
       {
         "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
         "dir": "right"
       },
       {
         "wormId": "w0",
         "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "up"
       },
       {
         "wormId": "w0",
@@ -4097,19 +4117,24 @@
     "bonusSolution": null
   },
   {
-    "id": "flock-36",
-    "name": "把归路留到最后",
+    "id": "flock-36-r2",
+    "name": "绕一圈，桥还在",
     "chapter": "月光荷塘",
-    "insight": "两座桥并不是两条随便走的路，它们是一来一回。",
+    "insight": "长队不只是占地方；只要桥上一直有伙伴，归路就还在。",
     "tutorial": false,
-    "difficulty": 2,
+    "difficulty": 3,
     "challenge": false,
-    "par": 15,
+    "par": 13,
     "ablations": [
+      {
+        "mechanic": "grow",
+        "result": "stuck",
+        "exploredStates": 10
+      },
       {
         "mechanic": "bridge",
         "result": "stuck",
-        "exploredStates": 15
+        "exploredStates": 35
       }
     ],
     "planning": {
@@ -4118,8 +4143,16 @@
       "fledges": 0,
       "switches": 0
     },
-    "exploredStates": 189,
+    "exploredStates": 89,
     "solution": [
+      {
+        "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
       {
         "wormId": "w0",
         "dir": "up"
@@ -4130,23 +4163,7 @@
       },
       {
         "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "down"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
+        "dir": "up"
       },
       {
         "wormId": "w0",
@@ -4166,7 +4183,7 @@
       },
       {
         "wormId": "w0",
-        "dir": "left"
+        "dir": "down"
       },
       {
         "wormId": "w0",
@@ -4259,252 +4276,33 @@
     "bonusSolution": null
   },
   {
-    "id": "flock-38",
-    "name": "一次抱一枚",
+    "id": "flock-38-r2",
+    "name": "一人一份小心意",
     "chapter": "月光荷塘",
-    "insight": "两枚蛋、两座桥；先安排篮子，再安排过河。",
+    "insight": "两枚蛋不必由同一位运送；分工也要算上每一次过河。",
     "tutorial": false,
-    "difficulty": 3,
+    "difficulty": 4,
     "challenge": false,
-    "par": 16,
+    "par": 22,
     "ablations": [
+      {
+        "mechanic": "fledge",
+        "result": "stuck",
+        "exploredStates": 1794
+      },
       {
         "mechanic": "bridge",
         "result": "stuck",
-        "exploredStates": 46
+        "exploredStates": 734
       }
     ],
     "planning": {
       "pushes": 0,
       "pushDirections": [],
-      "fledges": 0,
-      "switches": 0
-    },
-    "exploredStates": 623,
-    "solution": [
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "down"
-      },
-      {
-        "wormId": "w0",
-        "dir": "down"
-      },
-      {
-        "wormId": "w0",
-        "dir": "left"
-      },
-      {
-        "wormId": "w0",
-        "dir": "up"
-      },
-      {
-        "wormId": "w0",
-        "dir": "up"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "down"
-      },
-      {
-        "wormId": "w0",
-        "dir": "left"
-      },
-      {
-        "wormId": "w0",
-        "dir": "down"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      }
-    ],
-    "bonusPar": null,
-    "bonusSolution": null
-  },
-  {
-    "id": "flock-39",
-    "name": "桥那边的站位",
-    "chapter": "月光荷塘",
-    "insight": "果箱也能替荷叶留桥，但最后一推需要提前安排。",
-    "tutorial": false,
-    "difficulty": 4,
-    "challenge": false,
-    "par": 20,
-    "ablations": [
-      {
-        "mechanic": "bridge",
-        "result": "stuck",
-        "exploredStates": 15
-      },
-      {
-        "mechanic": "push",
-        "result": "stuck",
-        "exploredStates": 59
-      }
-    ],
-    "planning": {
-      "pushes": 1,
-      "pushDirections": [
-        "left"
-      ],
-      "fledges": 0,
-      "switches": 0
-    },
-    "exploredStates": 352,
-    "solution": [
-      {
-        "wormId": "w0",
-        "dir": "down"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "down"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "up"
-      },
-      {
-        "wormId": "w0",
-        "dir": "up"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "right"
-      },
-      {
-        "wormId": "w0",
-        "dir": "left"
-      },
-      {
-        "wormId": "w0",
-        "dir": "left"
-      },
-      {
-        "wormId": "w0",
-        "dir": "left"
-      },
-      {
-        "wormId": "w0",
-        "dir": "left"
-      },
-      {
-        "wormId": "w0",
-        "dir": "left"
-      },
-      {
-        "wormId": "w0",
-        "dir": "down"
-      },
-      {
-        "wormId": "w0",
-        "dir": "down"
-      },
-      {
-        "wormId": "w0",
-        "dir": "left"
-      },
-      {
-        "wormId": "w0",
-        "dir": "left"
-      }
-    ],
-    "bonusPar": null,
-    "bonusSolution": null
-  },
-  {
-    "id": "flock-40",
-    "name": "月光下，一起回家",
-    "chapter": "月光荷塘",
-    "insight": "分工不只为了开门，也为了让每一份收获走对方向。",
-    "tutorial": false,
-    "difficulty": 5,
-    "challenge": true,
-    "par": 25,
-    "ablations": [
-      {
-        "mechanic": "fledge",
-        "result": "stuck",
-        "exploredStates": 1244
-      },
-      {
-        "mechanic": "bridge",
-        "result": "stuck",
-        "exploredStates": 360
-      },
-      {
-        "mechanic": "water",
-        "result": "stuck",
-        "exploredStates": 9158
-      },
-      {
-        "mechanic": "bell",
-        "result": "stuck",
-        "exploredStates": 5068
-      }
-    ],
-    "planning": {
-      "pushes": 1,
-      "pushDirections": [
-        "right"
-      ],
       "fledges": 1,
       "switches": 2
     },
-    "exploredStates": 13278,
+    "exploredStates": 26849,
     "solution": [
       {
         "wormId": "w0",
@@ -4525,10 +4323,38 @@
       },
       {
         "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
         "dir": "down"
       },
       {
-        "wormId": "w1",
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "up"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
         "dir": "down"
       },
       {
@@ -4541,10 +4367,6 @@
       },
       {
         "wormId": "w1",
-        "dir": "up"
-      },
-      {
-        "wormId": "w1",
         "dir": "right"
       },
       {
@@ -4557,11 +4379,7 @@
       },
       {
         "wormId": "w1",
-        "dir": "up"
-      },
-      {
-        "wormId": "w1",
-        "dir": "down"
+        "dir": "right"
       },
       {
         "wormId": "w1",
@@ -4570,45 +4388,261 @@
       {
         "wormId": "w1",
         "dir": "up"
-      },
-      {
-        "wormId": "w1",
-        "dir": "right"
-      },
-      {
-        "wormId": "w1",
-        "dir": "left"
-      },
-      {
-        "wormId": "w1",
-        "dir": "down"
-      },
-      {
-        "wormId": "w1",
-        "dir": "down"
-      },
-      {
-        "wormId": "w1",
-        "dir": "down"
-      },
-      {
-        "wormId": "w1",
-        "dir": "down"
-      },
-      {
-        "wormId": "w1",
-        "dir": "right"
-      },
-      {
-        "wormId": "w1",
-        "dir": "down"
       },
       {
         "wormId": "w0",
         "dir": "left"
       }
     ],
-    "bonusPar": 26,
+    "bonusPar": null,
+    "bonusSolution": null
+  },
+  {
+    "id": "flock-39-r2",
+    "name": "桥那边的站位",
+    "chapter": "月光荷塘",
+    "insight": "推箱的路线，也在决定最后能不能回到家门前。",
+    "tutorial": false,
+    "difficulty": 4,
+    "challenge": false,
+    "par": 18,
+    "ablations": [
+      {
+        "mechanic": "bridge",
+        "result": "stuck",
+        "exploredStates": 24
+      },
+      {
+        "mechanic": "push",
+        "result": "stuck",
+        "exploredStates": 63
+      }
+    ],
+    "planning": {
+      "pushes": 5,
+      "pushDirections": [
+        "right",
+        "down",
+        "left"
+      ],
+      "fledges": 0,
+      "switches": 0
+    },
+    "exploredStates": 1055,
+    "solution": [
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "up"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "up"
+      },
+      {
+        "wormId": "w0",
+        "dir": "up"
+      },
+      {
+        "wormId": "w0",
+        "dir": "up"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      }
+    ],
+    "bonusPar": null,
+    "bonusSolution": null
+  },
+  {
+    "id": "flock-40-r2",
+    "name": "月光下，一起回家",
+    "chapter": "月光荷塘",
+    "insight": "两份送达，一次归来；出发时就给回家的人留一座桥。",
+    "tutorial": false,
+    "difficulty": 5,
+    "challenge": true,
+    "par": 25,
+    "ablations": [
+      {
+        "mechanic": "fledge",
+        "result": "stuck",
+        "exploredStates": 12686
+      },
+      {
+        "mechanic": "bridge",
+        "result": "stuck",
+        "exploredStates": 382
+      },
+      {
+        "mechanic": "bell",
+        "result": "stuck",
+        "exploredStates": 24328
+      }
+    ],
+    "planning": {
+      "pushes": 0,
+      "pushDirections": [],
+      "fledges": 1,
+      "switches": 2
+    },
+    "exploredStates": 117109,
+    "solution": [
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
+        "dir": "fledge",
+        "segmentIndex": 1
+      },
+      {
+        "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w1",
+        "dir": "down"
+      },
+      {
+        "wormId": "w1",
+        "dir": "left"
+      },
+      {
+        "wormId": "w1",
+        "dir": "right"
+      },
+      {
+        "wormId": "w1",
+        "dir": "right"
+      },
+      {
+        "wormId": "w1",
+        "dir": "right"
+      },
+      {
+        "wormId": "w1",
+        "dir": "up"
+      },
+      {
+        "wormId": "w1",
+        "dir": "right"
+      },
+      {
+        "wormId": "w1",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
+        "dir": "up"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      },
+      {
+        "wormId": "w0",
+        "dir": "left"
+      }
+    ],
+    "bonusPar": 27,
     "bonusSolution": [
       {
         "wormId": "w0",
@@ -4629,11 +4663,23 @@
       },
       {
         "wormId": "w0",
-        "dir": "down"
+        "dir": "left"
       },
       {
-        "wormId": "w1",
-        "dir": "down"
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
+        "dir": "right"
       },
       {
         "wormId": "w1",
@@ -4645,10 +4691,6 @@
       },
       {
         "wormId": "w1",
-        "dir": "up"
-      },
-      {
-        "wormId": "w1",
         "dir": "right"
       },
       {
@@ -4665,51 +4707,47 @@
       },
       {
         "wormId": "w1",
+        "dir": "right"
+      },
+      {
+        "wormId": "w1",
+        "dir": "right"
+      },
+      {
+        "wormId": "w0",
         "dir": "down"
       },
       {
-        "wormId": "w1",
+        "wormId": "w0",
+        "dir": "down"
+      },
+      {
+        "wormId": "w0",
         "dir": "right"
       },
       {
-        "wormId": "w1",
-        "dir": "up"
-      },
-      {
-        "wormId": "w1",
-        "dir": "right"
-      },
-      {
-        "wormId": "w1",
+        "wormId": "w0",
         "dir": "left"
       },
       {
-        "wormId": "w1",
-        "dir": "down"
+        "wormId": "w0",
+        "dir": "up"
       },
       {
-        "wormId": "w1",
-        "dir": "down"
+        "wormId": "w0",
+        "dir": "left"
       },
       {
-        "wormId": "w1",
-        "dir": "down"
+        "wormId": "w0",
+        "dir": "left"
       },
       {
-        "wormId": "w1",
-        "dir": "down"
+        "wormId": "w0",
+        "dir": "left"
       },
       {
-        "wormId": "w1",
-        "dir": "right"
-      },
-      {
-        "wormId": "w1",
-        "dir": "down"
-      },
-      {
-        "wormId": "w1",
-        "dir": "right"
+        "wormId": "w0",
+        "dir": "left"
       },
       {
         "wormId": "w0",
