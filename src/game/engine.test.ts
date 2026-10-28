@@ -4,6 +4,8 @@ import { test } from "node:test";
 import {
   applyMove,
   applySnip,
+  applyFledge,
+  fledgeCandidates,
   formatState,
   goalsReady,
   isPressed,
@@ -11,7 +13,7 @@ import {
 } from "./engine";
 import { LEVELS } from "./levels";
 import { parseLevel } from "./parse";
-import { hashState, solve } from "./solver";
+import { hashState, replayAction, solve } from "./solver";
 import type { Cell, GameState, Point, Worm } from "./types";
 
 function arena(width: number, height: number): GameState {
@@ -282,8 +284,7 @@ test("every campaign level parses and has a solution", { timeout: 300_000 }, () 
       assert.equal(shortest.moves, level.par, `${level.id}: stale par`);
       let replay = start;
       for (const action of result.path) {
-        const wi = replay.worms.findIndex((w) => w.id === action.wormId);
-        const step = action.dir === "snip" ? applySnip(replay, wi) : applyMove(replay, wi, action.dir);
+        const step = replayAction(replay, action);
         assert.ok(step, `${level.id}: illegal solution step`);
         assert.equal(step.state.lost, null);
         assert.ok(step.state.worms.reduce((n, w) => n + w.segments.length, 0) >= start.worms.reduce((n, w) => n + w.segments.length, 0), `${level.id}: flock lost`);
@@ -338,17 +339,66 @@ test("a helping hen cannot finish while the lead flock is still away", () => {
 });
 
 test("authored lessons require their intended mechanic", () => {
-  for (const id of ["farm-07", "farm-08", "farm-15", "farm-19", "farm-20", "farm-21", "farm-22", "farm-24"]) {
-    const state = parseLevel(LEVELS.find((l) => l.id === id)!);
-    state.cells.forEach((cell) => { if (cell.pickup?.kind === "rock") cell.pickup = undefined; });
-    assert.equal(solve(state, { maxNodes: 30_000 }).reason, "stuck", `${id}: barrel can be bypassed`);
+  for (const level of LEVELS) for (const mechanic of level.requires ?? []) {
+    const result = solve(parseLevel(level), { forbid: mechanic });
+    assert.equal(result.reason, "stuck", `${level.id}: ${mechanic} must be required (a search budget is not proof)`);
   }
-  const grow = parseLevel(LEVELS.find((l) => l.id === "farm-10")!);
-  grow.cells.forEach((cell) => { if (cell.pickup?.kind === "apple") cell.pickup = undefined; });
-  assert.equal(solve(grow).reason, "stuck", "corn is necessary to reach the gate");
-  for (const id of ["farm-12", "farm-23"]) {
-    const state = parseLevel(LEVELS.find((l) => l.id === id)!);
-    state.worms = state.worms.filter((w) => w.id === "w0");
-    assert.equal(solve(state).reason, "stuck", `${id}: helper can be bypassed`);
+});
+
+test("fledging conserves the flock, retains the egg, consumes the patch and can be undone", () => {
+  const state = arena(8, 4);
+  state.gentle = true;
+  state.worms = [worm([{ x: 5, y: 2 }, { x: 4, y: 2 }, { x: 3, y: 2 }, { x: 2, y: 2 }], true)];
+  put(state, { x: 3, y: 2 }, { fixture: { kind: "roost", used: false } });
+  const snapshot = structuredClone(state);
+  const step = applyFledge(state, 0)!;
+  assert.ok(step);
+  assert.equal(step.sound, "fledge");
+  assert.deepEqual(step.state.worms.map((w) => [w.id, w.segments.length, w.carrying]), [["w0", 2, true], ["w1", 2, false]]);
+  assert.equal(step.state.activeId, "w1");
+  assert.deepEqual(step.state.cells[19]?.fixture, { kind: "roost", used: true });
+  assert.equal(step.state.moves, 1);
+  assert.deepEqual(state, snapshot, "undo snapshot must stay untouched");
+  assert.equal(applyFledge(step.state, 1), null);
+  assert.deepEqual(applyFledge(state, 0), step, "restoring the snapshot restores the patch and IDs");
+});
+
+test("fledging is explicit, excludes the mother and supports choosing among chicks", () => {
+  const state = arena(8, 4);
+  state.worms = [worm([{ x: 5, y: 2 }, { x: 4, y: 2 }, { x: 3, y: 2 }])];
+  for (const x of [3, 4, 5]) put(state, { x, y: 2 }, { fixture: { kind: "roost", used: false } });
+  assert.deepEqual(fledgeCandidates(state, 0), [1, 2]);
+  assert.equal(applyFledge(state, 0, 0), null);
+  assert.equal(applyFledge(state, 0, 7), null);
+  assert.equal(applyFledge(state, 0, 2)?.state.worms[0]?.segments.length, 2);
+  assert.equal(applyFledge(state, 0, 1)?.state.worms[0]?.segments.length, 1);
+  const used = structuredClone(state);
+  put(used, { x: 4, y: 2 }, { fixture: { kind: "roost", used: true } });
+  assert.notEqual(hashState(state), hashState(used));
+});
+
+test("water motion records every bend and never teleports through the flock", () => {
+  const state = parseLevel(LEVELS.find((l) => l.id === "flock-19")!);
+  const step = applyMove(state, 0, "right")!;
+  assert.ok(step);
+  assert.deepEqual(step.motion?.[0]?.path, [{ x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }, { x: 4, y: 2 }, { x: 4, y: 3 }]);
+  assert.equal(step.motion?.[0]?.id, "crate-2-1");
+});
+
+test("planning puzzles require repositioning and a genuine gate handoff", () => {
+  for (const id of ["flock-05", "flock-06", "flock-14", "flock-20", "flock-23"]) {
+    let state = parseLevel(LEVELS.find((l) => l.id === id)!);
+    const route = solve(state).path;
+    const directions = new Set<string>(); let pushes = 0;
+    for (const action of route) {
+      const step = replayAction(state, action)!;
+      if (step.motion?.length) { pushes++; directions.add(action.dir); }
+      state = step.state;
+    }
+    assert.ok(pushes >= 4 && directions.size >= 3, `${id}: crate puzzle became a straight push`);
   }
+  const handoff = solve(parseLevel(LEVELS.find((l) => l.id === "flock-07")!)).path;
+  let previous = "w0", switches = 0;
+  for (const action of handoff) { if (previous !== action.wormId) switches++; previous = action.wormId; }
+  assert.ok(switches >= 4, "two gates must require handing control back and forth");
 });

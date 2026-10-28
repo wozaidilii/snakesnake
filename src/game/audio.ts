@@ -38,6 +38,9 @@ export function playSound(sound: Sound): void {
   if (sound === "move") tone(180, now, 0.06, "sine", 0.03);
   else if (sound === "eat") tone(140, now, 0.09, "triangle", 0.04);
   else if (sound === "push") tone(90, now, 0.1, "square", 0.02);
+  else if (sound === "fledge") {
+    [392, 494, 587].forEach((freq, i) => tone(freq, now + i * 0.08, 0.18, "sine", 0.035));
+  }
   else if (sound === "grow") {
     tone(330, now, 0.08, "sine", 0.04);
     tone(440, now + 0.07, 0.1, "sine", 0.04);

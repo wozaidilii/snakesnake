@@ -65,7 +65,7 @@ export function parseLevel(level: Level): GameState {
       } else if (char in FLOW) {
         cell.terrain = "water";
         cell.flow = FLOW[char];
-      } else if (char === "R") cell.pickup = { kind: "rock" };
+      } else if (char === "R") cell.pickup = { kind: "rock", id: `crate-${x}-${y}` };
       else if (char === "A") cell.pickup = { kind: "apple" };
       else if (char === "G") cell.pickup = { kind: "gold" };
       else if (char === "E") cell.pickup = { kind: "egg" };
@@ -77,7 +77,7 @@ export function parseLevel(level: Level): GameState {
       else if (char === "d") cell.fixture = { kind: "door", color: "blue" };
       else if (char === "X") cell.fixture = { kind: "exit" };
       else if (char === "*") cell.fixture = { kind: "daisy" };
-      else if (char === "S") cell.fixture = { kind: "scissors" };
+      else if (char === "S") cell.fixture = level.gentle ? { kind: "roost", used: false } : { kind: "scissors" };
       else if (char === "!") cell.fixture = { kind: "crack" };
       else if (char === "N") cell.fixture = { kind: "nest", filled: false };
       else if (char === "L") cell.fixture = { kind: "lock" };

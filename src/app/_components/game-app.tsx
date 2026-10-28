@@ -2,21 +2,22 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { playSound } from "~/game/audio";
-import { activeIndex, applyMove, goalsReady } from "~/game/engine";
+import { activeIndex, add, at, applyFledge, applyMove, fledgeCandidates, goalsReady } from "~/game/engine";
 import { LEVELS, WORLDS, getLevel, levelsIn, nextLevelId } from "~/game/levels";
 import { parseLevel } from "~/game/parse";
 import { emptySave, mergeSave, normalizeSave, sameSave, type DigSaveData } from "~/game/save";
-import type { Dir, GameState, Level, Sound } from "~/game/types";
+import type { Dir, GameState, Level, Sound, StepResult } from "~/game/types";
 import { api } from "~/trpc/react";
 import { Board } from "./board";
 import { Icon, Sprite, type SpriteName } from "./sprite";
 
 const STORAGE_KEY = "loamly-dig-v1";
-const LAST_LEVEL_KEY = "henyard-farm-level-v2";
+const LAST_LEVEL_KEY = "henyard-flock-level-v3";
 const SOUND_KEY = "henyard-sound";
 const FIRST = LEVELS[0]!;
 const ARROWS: Record<Dir, string> = { up: "↑", down: "↓", left: "←", right: "→" };
 const DIR_LABELS: Record<Dir, string> = { up: "向上", down: "向下", left: "向左", right: "向右" };
+const DIFFICULTY = ["", "教学", "巧思", "进阶", "烧脑", "挑战"];
 
 function persist(key: string, value: string): boolean {
   try { localStorage.setItem(key, value); return true; } catch { return false; }
@@ -53,6 +54,10 @@ export function GameApp() {
   const [bonk, setBonk] = useState(false);
   const [notice, setNotice] = useState("用方向键，带小鸡们出发吧。");
   const [dismissResult, setDismissResult] = useState(false);
+  const [animation, setAnimation] = useState<{ sequence: number; step: StepResult } | null>(null);
+  const animationId = useRef(0);
+  const inputTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queuedDirection = useRef<Dir | null>(null);
   const stateRef = useRef(state), pastRef = useRef(past), saveRef = useRef(save);
   stateRef.current = state; pastRef.current = past; saveRef.current = save;
   const bonkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,7 +73,7 @@ export function GameApp() {
       setLevel(selected); setState(parseLevel(selected));
     } catch { /* A blocked storage area never prevents playing. */ }
     setBooted(true);
-    return () => { if (bonkTimer.current) clearTimeout(bonkTimer.current); };
+    return () => { if (bonkTimer.current) clearTimeout(bonkTimer.current); clearInput(); };
   }, []);
 
   useEffect(() => {
@@ -94,9 +99,32 @@ export function GameApp() {
   }, [state.won, state.levelId, state.moves, state.hats]);
 
   function sound(kind: Sound) { if (!muted) playSound(kind); }
+  function clearInput() {
+    if (inputTimer.current) clearTimeout(inputTimer.current);
+    inputTimer.current = null;
+    queuedDirection.current = null;
+  }
+  useEffect(() => {
+    clearInput();
+    window.addEventListener("blur", clearInput);
+    return () => window.removeEventListener("blur", clearInput);
+  }, [overlay]);
+  function accept(step: StepResult, current: GameState) {
+    const history = [...pastRef.current, current];
+    pastRef.current = history; stateRef.current = step.state;
+    setPast(history); setState(step.state); setAnimation({ sequence: ++animationId.current, step });
+    setDismissResult(false); sound(step.sound);
+    const duration = step.sound === "fledge" ? 420 : Math.max(145, ...((step.motion ?? []).map((m) => Math.min(520, (m.path.length - 1) * 130))));
+    inputTimer.current = setTimeout(() => {
+      inputTimer.current = null;
+      const next = queuedDirection.current; queuedDirection.current = null;
+      if (next) actions.current.move(next);
+    }, duration);
+  }
   function play(id: string) {
     const found = getLevel(id);
     if (!found) return;
+    clearInput(); setAnimation(null);
     const fresh = parseLevel(found);
     stateRef.current = fresh; pastRef.current = [];
     setLevel(found); setState(fresh); setPast([]); setHints(0); setOverlay(null); setDismissResult(false);
@@ -106,25 +134,40 @@ export function GameApp() {
   function move(dir: Dir) {
     const current = stateRef.current;
     if (current.won || current.lost || overlay || !booted) return;
+    if (inputTimer.current) { queuedDirection.current = dir; return; }
     const step = applyMove(current, activeIndex(current), dir);
     if (!step) {
       sound("no"); setBonk(true);
-      setNotice("这边暂时过不去，换个方向试试。走错了随时可以撤销。");
+      const head = current.worms[activeIndex(current)]?.segments[0];
+      const cell = head ? at(current, add(head, dir)) : undefined;
+      setNotice(cell?.terrain === "water" ? "鸡群不能下水。果箱可以借水流漂到下游。"
+        : cell?.fixture?.kind === "exit" ? "先收齐蓝李、送好鸡蛋，再由 1 号领队回家。"
+        : cell?.fixture?.kind === "door" ? "门还没有开。留一位伙伴或一个果箱压住同记号的踏板。"
+        : cell?.pickup?.kind === "rock" ? "这个方向推不动。果箱不能拉，也不能推上篮子、小屋或另一只伙伴。"
+        : cell?.pickup?.kind === "egg" ? "一次只能抱一枚蛋，先把手里的送进空篮子。"
+        : "这里被篱笆或伙伴挡住了。试着留出转身的空间，也可以撤销。 ");
       if (bonkTimer.current) clearTimeout(bonkTimer.current);
       bonkTimer.current = setTimeout(() => setBonk(false), 180);
       return;
     }
-    const history = [...pastRef.current, current];
-    pastRef.current = history; stateRef.current = step.state;
-    setPast(history); setState(step.state); setDismissResult(false); sound(step.sound);
+    accept(step, current);
     const feedback: Partial<Record<Sound, string>> = {
-      gold: "一簇浆果，收好啦。", grow: "新的小伙伴加入了队伍。", push: "木桶往前挪了一格。",
-      splash: "木桶顺着水流漂到了下游。", egg: step.state.worms.some((w) => w.carrying) ? "轻轻抱好，带它回小巢。" : "鸡蛋已经安稳地放进小巢。",
-      crack: "蛋不小心裂了。撤销一步，再换条干燥的小路。", win: "大家平安回家了。", lock: "门闩换了一个方向。",
+      gold: "一簇蓝李，收好啦。", grow: "新的小伙伴加入了队伍。", push: "果箱往前挪了一格。",
+      splash: "果箱顺着水流漂到了下游。", egg: step.state.worms.some((w) => w.carrying) ? "轻轻抱好，带它回编篮。" : "鸡蛋已经安稳地放进编篮。",
+      crack: "蛋不小心裂了。撤销一步，再换条干燥的小路。", win: "收获带回家啦，伙伴们辛苦了。", lock: "门闩换了一个方向。",
     };
-    setNotice(feedback[step.sound] ?? (goalsReady(step.state) ? "收获齐了，带 1 号母鸡走进写着「回家」的草窝。" : "小鸡们正跟着你的脚印。"));
+    setNotice(feedback[step.sound] ?? (goalsReady(step.state) ? "收获齐了，带 1 号母鸡走进写着「回家」的小屋。" : "小鸡们正跟着你的脚印。"));
+  }
+  function fledge(index?: number) {
+    if (overlay || !booted) return;
+    const current = stateRef.current;
+    const step = applyFledge(current, activeIndex(current), index);
+    if (!step) { setNotice("先让小鸡站上发光的育芽地，再按 F 或点选它。每块育芽地只能用一次。"); return; }
+    clearInput(); accept(step, current);
+    setNotice(`小鸡长大成了 ${Number(step.state.activeId.slice(1)) + 1} 号领队，已切换到新队伍。按 Q 返回原队。`);
   }
   function undo() {
+    clearInput(); setAnimation(null);
     const previous = pastRef.current.at(-1);
     if (!previous) return;
     const history = pastRef.current.slice(0, -1);
@@ -132,6 +175,7 @@ export function GameApp() {
     setPast(history); setState(previous); setDismissResult(false); setNotice("回到上一步。慢慢想，不着急。"); sound("move");
   }
   function restart() {
+    clearInput(); setAnimation(null);
     const fresh = parseLevel(level);
     const history = [...pastRef.current, stateRef.current];
     pastRef.current = history; stateRef.current = fresh;
@@ -139,6 +183,7 @@ export function GameApp() {
   }
   function focus(id: string) {
     if (stateRef.current.won || stateRef.current.lost || overlay) return;
+    clearInput(); setAnimation(null);
     const next = { ...stateRef.current, activeId: id };
     stateRef.current = next; setState(next);
   }
@@ -147,8 +192,8 @@ export function GameApp() {
     const next = current.worms[(activeIndex(current) + 1) % current.worms.length];
     if (next) focus(next.id);
   }
-  const actions = useRef({ move, undo, restart, swap, blocked: false });
-  actions.current = { move, undo, restart, swap, blocked: !!overlay || ((state.won || !!state.lost) && !dismissResult) };
+  const actions = useRef({ move, undo, restart, swap, fledge, blocked: false });
+  actions.current = { move, undo, restart, swap, fledge, blocked: !!overlay || ((state.won || !!state.lost) && !dismissResult) };
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLElement && (event.target.matches("input, textarea, select") || event.target.isContentEditable)) return;
@@ -160,6 +205,7 @@ export function GameApp() {
       else if (key === "z" || key === "backspace") { event.preventDefault(); if (!event.repeat) actions.current.undo(); }
       else if (key === "r" && !event.repeat) actions.current.restart();
       else if (key === "q" && !event.repeat) actions.current.swap();
+      else if (key === "f" && !event.repeat) { event.preventDefault(); actions.current.fledge(); }
     };
     window.addEventListener("keydown", down);
     return () => window.removeEventListener("keydown", down);
@@ -179,13 +225,15 @@ export function GameApp() {
   const hasBarrel = level.rows.some((row) => row.includes("R"));
   const hasPlate = level.rows.some((row) => row.includes("B"));
   const showResult = (state.won || !!state.lost) && !dismissResult;
+  const canFledge = fledgeCandidates(state, activeIndex(state)).length > 0;
+  const hasRoost = level.rows.some((row) => row.includes("S"));
 
   return <main className="henyard-app">
     <header className="site-header">
       <a className="brand" href="/" aria-label="咕咕归巢首页"><Sprite name="hen" /><span><strong>咕咕归巢</strong><small>H E N Y A R D</small></span></a>
       <span className="header-caption">一小片田园，一点点巧思。</span>
       <nav className="header-actions" aria-label="游戏菜单">
-        <button type="button" className="text-button" onClick={() => setOverlay("map")}><Icon name="map" /><span>农场地图</span></button>
+        <button type="button" className="text-button" aria-label="农场地图" onClick={() => setOverlay("map")}><Icon name="map" /><span>农场地图</span></button>
         <button type="button" className="icon-button" aria-label={muted ? "开启声音" : "关闭声音"} aria-pressed={!muted} onClick={() => { setMuted(!muted); persist(SOUND_KEY, muted ? "on" : "off"); }}><Icon name={muted ? "mute" : "sound"} /></button>
         <button type="button" className="icon-button help-button" aria-label="玩法说明" onClick={() => setOverlay("help")}><Icon name="help" /></button>
       </nav>
@@ -203,26 +251,27 @@ export function GameApp() {
       </aside>
 
       <section className="play-panel" aria-label="当前关卡">
-        <div className="level-heading"><div className="level-number">{String(index + 1).padStart(2, "0")}</div><div><div className="level-kicker">{world.name}<span> / </span>{level.challenge ? "选修小挑战" : level.difficulty === 1 ? "轻松发现" : "动动脑筋"}</div><h2>{level.name}</h2></div><div className="move-counter"><strong>{state.moves}</strong><span>步</span></div></div>
-        <div className="board-surround"><div className="weather-note"><Icon name="sun" /><span>宜 · 出门散步</span><span className="flock-count"><Sprite name="chick" />{state.worms.reduce((n, w) => n + w.segments.length - 1, 0)} 位小伙伴</span></div>
-          <Board key={level.id} state={state} bonk={bonk} onMove={move} onFocusWorm={focus} />
+        <div className="level-heading"><div className="level-number">{String(index + 1).padStart(2, "0")}</div><div><div className="level-kicker">{world.name}<span> / </span>{level.tutorial ? "教学 · 认识规则" : `${DIFFICULTY[level.difficulty ?? 2]} · ${"◆".repeat((level.difficulty ?? 2) - 1)}`}</div><h2>{level.name}</h2></div><div className="move-counter"><strong>{state.moves}</strong><span>步</span></div></div>
+        <div className="board-surround"><div className="weather-note"><Icon name="sun" /><span>宜 · 出门散步</span><span className="flock-count"><Sprite name="chick" />{state.worms.reduce((n, w) => n + w.segments.length, 0)} 位成员 · {state.worms.length} 支队伍</span></div>
+          <Board key={level.id} state={state} bonk={bonk} animation={animation} onMove={move} onFocusWorm={focus} onFledge={fledge} />
         </div>
         <div className="control-dock"><div className="directions" aria-label="移动控制">{(["up", "down", "left", "right"] as Dir[]).map((dir) => <button key={dir} type="button" className="direction-button" onClick={() => move(dir)} aria-label={DIR_LABELS[dir]} disabled={!booted || state.won || !!state.lost}>{ARROWS[dir]}</button>)}</div><div className="dock-divider" /><button type="button" className="tool-button" onClick={undo} disabled={!past.length} aria-label="撤销一步"><Icon name="undo" /><span>撤销</span></button><button type="button" className="tool-button" onClick={restart} aria-label="重新开始本关"><Icon name="restart" /><span>重来</span></button>{state.worms.length > 1 ? <button type="button" className="tool-button" onClick={swap} aria-label="切换母鸡"><Sprite name="hen" /><span>换队</span></button> : null}</div>
+        {hasRoost ? <div className="flock-tools"><button type="button" className={`fledge-button ${canFledge ? "ready" : ""}`} onClick={() => fledge()} disabled={!canFledge || state.won || !!state.lost}><Sprite name="flower" /><span>离群长大 <kbd>F</kbd></span></button><span>{canFledge ? "点发光的小鸡也可以分队" : state.worms.length > 1 ? `当前：${Number(state.activeId.slice(1)) + 1} 号领队 · 点击母鸡或按 Q 换队` : "让小鸡站在育芽地上"}</span></div> : null}
         <p className="keyboard-tip"><kbd>↑ ↓ ← →</kbd> 或 <kbd>W A S D</kbd> 移动 <span>·</span> <kbd>Z</kbd> 撤销 <span>·</span> <kbd>R</kbd> 重来 {state.worms.length > 1 ? <><span>·</span><kbd>Q</kbd> 换队</> : null}</p>
         <p className="touch-tip">轻点方向按钮，或在草地上滑动</p>
         <div className="status-line" role="status" aria-live="polite"><span />{notice}</div>
       </section>
 
       <aside className="field-notes" aria-label="目标与提示">
-        <section className="paper-card objectives"><span className="card-pin" /><p className="eyebrow">TODAY’S LITTLE QUEST</p><h3>今日的小任务</h3><Goal sprite="berries" title="收集红浆果" detail={`${totalBerries - remainingBerries} / ${totalBerries} 簇已收好`} done={remainingBerries === 0} />{totalEggs > 0 ? <Goal sprite="egg" title="把鸡蛋送回小巢" detail={`${delivered} / ${totalEggs} 枚已安顿`} done={delivered === totalEggs} /> : null}<Goal sprite="nest" title="一起平安归巢" detail={goalsReady(state) ? "带队母鸡可以回家啦" : "收好所有任务后回家"} done={state.won} /><p className="quest-footer">{record ? `最好记录 ${record.moves} 步 · 今天也慢慢来` : "每一次小小的发现，都值得开心。"}</p></section>
+        <section className="paper-card objectives"><span className="card-pin" /><p className="eyebrow">TODAY’S LITTLE QUEST</p><h3>今日的小任务</h3><Goal sprite="berries" title="收集蓝李" detail={`${totalBerries - remainingBerries} / ${totalBerries} 簇已收好`} done={remainingBerries === 0} />{totalEggs > 0 ? <Goal sprite="egg" title="把鸡蛋送回编篮" detail={`${delivered} / ${totalEggs} 枚已安顿`} done={delivered === totalEggs} /> : null}<Goal sprite="sign" title="主队带着收获归巢" detail={goalsReady(state) ? "带队母鸡可以回家啦" : "收好所有任务后回家"} done={state.won} /><p className="quest-footer">{record ? `最好记录 ${record.moves} 步 · 今天也慢慢来` : "每一次小小的发现，都值得开心。"}</p></section>
         <section className="field-tip"><div className="tip-heading"><Sprite name="chick" /><h3>田野小贴士</h3></div><p>{level.insight}</p><button type="button" className="hint-button" onClick={() => setHints((n) => Math.min(hintList.length, n + 1))} disabled={hints >= hintList.length}>{hints === 0 ? "给我一点小提示" : hints < hintList.length ? "再说得具体一点" : "提示都在这里啦"}<span>{hints === 0 ? "＋" : `${hints} / ${hintList.length}`}</span></button>{hints > 0 ? <ol className="hint-list" aria-live="polite">{hintList.slice(0, hints).map((hint, i) => <li key={hint}><small>线索 {i + 1}</small>{hint}</li>)}</ol> : <small className="hint-caption">先自己试试，灵感随时在这里。</small>}</section>
-        <section className="field-guide"><h3>在这片田野里</h3><div><Sprite name="hen" /><span>你走一步，小鸡跟一步</span></div>{hasBarrel ? <div><Sprite name="barrel" /><span>木桶只能推，不能拉</span></div> : null}{hasPlate ? <div><Sprite name="plate" /><span>压住踏板，打开同记号的门</span></div> : <div><Sprite name="berries" /><span>红浆果要全部带回家</span></div>}{totalEggs > 0 ? <div><Sprite name="filledNest" /><span>白蛋送小巢，泥塘要绕开</span></div> : <div><Sprite name="corn" /><span>吃到玉米，多一只小鸡</span></div>}</section>
+        <section className="field-guide"><h3>在这片田野里</h3><div><Sprite name="hen" /><span>你走一步，小鸡跟一步</span></div>{hasRoost ? <div><Sprite name="flower" /><span>小鸡站上育芽地，按 F 长大分队</span></div> : null}{hasBarrel ? <div><Sprite name="barrel" /><span>果箱只能推，不能拉</span></div> : null}{hasPlate ? <div><Sprite name="plate" /><span>压住踏板，打开同记号的门</span></div> : <div><Sprite name="berries" /><span>蓝李要全部带回家</span></div>}{totalEggs > 0 ? <div><Sprite name="filledNest" /><span>斑点蛋送编篮，泥塘要绕开</span></div> : <div><Sprite name="corn" /><span>吃到麦穗，多一只小鸡</span></div>}</section>
       </aside>
     </div>
     <footer className="site-footer"><span>HENYARD <i>✦</i> 小小农场，大大的好奇心</span><span>{!localSaved ? "浏览器未能保存进度" : sync.isError || query.isError ? "进度已保存在这台设备" : "进度自动保存"}<b className="save-dot" /></span></footer>
 
-    {overlay === "map" ? <Modal title="农场地图" onClose={() => setOverlay(null)} className="map-dialog"><p className="eyebrow">YOUR LITTLE JOURNEY</p><h2>想去哪里走走？</h2><p>四片田野，24 个小发现。所有关卡都可以自由探索。</p><div className="map-chapters">{WORLDS.map((item) => <section key={item.id}><h3><Sprite name={item.icon} />{item.depth} · {item.name}</h3><p>{item.blurb}</p><div>{levelsIn(item.id).map((l) => <button type="button" key={l.id} className={l.id === level.id ? "chosen" : ""} onClick={() => play(l.id)}><b>{String(LEVELS.indexOf(l) + 1).padStart(2, "0")}</b><span>{l.name}{l.challenge ? <small>选修挑战</small> : null}</span>{save.cleared.includes(l.id) ? "✓" : "›"}</button>)}</div></section>)}</div></Modal> : null}
-    {overlay === "help" ? <Modal title="玩法说明" onClose={() => setOverlay(null)}><Sprite name="hen" className="dialog-mascot" /><p className="eyebrow">A FIELD GUIDE</p><h2>跟着妈妈，一起回家。</h2><p>用方向键、WASD、屏幕按钮，或在棋盘滑动。每次只走一格，小鸡会沿着脚印跟随。</p><div className="help-rules"><Goal sprite="berries" title="收齐浆果" detail="红浆果全部收好，才可以回家。" done={false} /><Goal sprite="corn" title="带上新伙伴" detail="玉米让队伍变长；留一点转身的空间。" done={false} /><Goal sprite="plate" title="帮忙留门" detail="母鸡、小鸡、木桶都能压踏板。栅门会等队伍通过。" done={false} /><Goal sprite="egg" title="照顾鸡蛋" detail="一次抱一枚，送进标有「蛋」的小巢。抱蛋时避开泥塘。" done={false} /><Goal sprite="nest" title="结束散步" detail="完成任务后，让带队的 1 号母鸡走进「回家」草窝。" done={false} /></div><p className="help-foot">Z 撤销 · R 重来 · Q 切换母鸡（或直接点选）<br />重来也能撤销。没有时间限制，可以随时换一关。</p><button type="button" className="primary-button" onClick={() => setOverlay(null)}>知道啦，去散步 <Icon name="arrow" /></button></Modal> : null}
-    {showResult && !overlay ? <Modal title={state.won ? "平安归巢" : "再试一条小路"} onClose={() => setDismissResult(true)}><div className="result-art"><Sprite name={state.won ? "filledNest" : "egg"} /><Sprite name="hen" /><Sprite name="chick" /></div><p className="eyebrow">{state.won ? "HOME, SWEET HOME" : "TAKE YOUR TIME"}</p><h2>{state.won ? "一家子，整整齐齐。" : "没关系，再试一条小路。"}</h2><p>{state.won ? `「${level.name}」的收获已经带回家，今天走了 ${state.moves} 步。` : "蛋在泥塘里磕裂了。撤销刚刚那一步，试着从干燥的草地绕过去。"}</p>{state.won ? <><div className="result-discovery"><small>这次的小发现</small><p>{level.insight}</p></div><p className="result-record">{level.par && state.moves <= level.par ? "✧ 恰到好处！你找到了最短路线。" : level.par ? `还想再琢磨一下？这关存在 ${level.par} 步的路线。` : "这份发现，已经记在农场手记里了。"}</p>{!upcoming ? <p>四片田野都逛过啦。地图上还有没完成的发现，也可以随时回去看看。</p> : null}<div className="dialog-actions"><button type="button" onClick={restart}>再散步一次</button><button type="button" className="primary-button" onClick={() => upcoming ? play(upcoming) : setOverlay("map")}>{upcoming ? "去下一片小天地" : "看看农场地图"}<Icon name="arrow" /></button></div></> : <div className="dialog-actions"><button type="button" onClick={restart}>重新出发</button><button type="button" className="primary-button" onClick={undo}>撤销一步 <Icon name="undo" /></button></div>}</Modal> : null}
+    {overlay === "map" ? <Modal title="农场地图" onClose={() => setOverlay(null)} className="map-dialog"><p className="eyebrow">YOUR LITTLE JOURNEY</p><h2>想去哪里走走？</h2><p>4 个入门教学、1 个水流教学和 19 道规划谜题。所有关卡都可以自由探索。</p><div className="map-chapters">{WORLDS.map((item) => <section key={item.id}><h3><Sprite name={item.icon} />{item.depth} · {item.name}</h3><p>{item.blurb}</p><div>{levelsIn(item.id).map((l) => <button type="button" key={l.id} className={l.id === level.id ? "chosen" : ""} onClick={() => play(l.id)}><b>{String(LEVELS.indexOf(l) + 1).padStart(2, "0")}</b><span>{l.name}<small>{l.tutorial ? "教学" : `${DIFFICULTY[l.difficulty ?? 2]} ${"◆".repeat((l.difficulty ?? 2) - 1)}`}</small></span>{save.cleared.includes(l.id) ? "✓" : "›"}</button>)}</div></section>)}</div></Modal> : null}
+    {overlay === "help" ? <Modal title="玩法说明" onClose={() => setOverlay(null)}><Sprite name="hen" className="dialog-mascot" /><p className="eyebrow">A FIELD GUIDE</p><h2>跟着妈妈，一起回家。</h2><p>用方向键、WASD、屏幕按钮，或在棋盘滑动。每次只走一格，小鸡会沿着脚印跟随。</p><div className="help-rules"><Goal sprite="berries" title="收齐蓝李" detail="蓝李全部收好，才可以回家。" done={false} /><Goal sprite="corn" title="带上新伙伴" detail="麦穗让队伍变长；留一点转身的空间。" done={false} /><Goal sprite="plate" title="帮忙留门" detail="母鸡、小鸡、果箱都能压踏板。栅门会等队伍通过。" done={false} /><Goal sprite="flower" title="离群长大" detail="让小鸡站上育芽地，按 F 或点选它：它和身后的伙伴组成新队。每块地只用一次，伙伴不会减少。Q 或点母鸡换队，只有 1 号可以结束本关。" done={false} /><Goal sprite="egg" title="照顾鸡蛋" detail="一次抱一枚，送进标有「蛋」的编篮。抱蛋时避开泥塘。" done={false} /><Goal sprite="sign" title="结束散步" detail="完成任务后，让带队的 1 号母鸡走进「回家」小屋。" done={false} /></div><p className="help-foot">Z 撤销 · R 重来 · F 离群长大 · Q 切换母鸡（或直接点选）<br />重来也能撤销。没有时间限制，可以随时换一关。</p><button type="button" className="primary-button" onClick={() => setOverlay(null)}>知道啦，去散步 <Icon name="arrow" /></button></Modal> : null}
+    {showResult && !overlay ? <Modal title={state.won ? "平安归巢" : "再试一条小路"} onClose={() => setDismissResult(true)}><div className="result-art"><Sprite name={state.won ? "filledNest" : "egg"} /><Sprite name="hen" /><Sprite name="chick" /></div><p className="eyebrow">{state.won ? "HOME, SWEET HOME" : "TAKE YOUR TIME"}</p><h2>{state.won ? "分工合作，收获满满。" : "没关系，再试一条小路。"}</h2><p>{state.won ? `「${level.name}」的收获已经带回家，今天走了 ${state.moves} 步。` : "蛋在泥塘里磕裂了。撤销刚刚那一步，试着从干燥的草地绕过去。"}</p>{state.won ? <><div className="result-discovery"><small>这次的小发现</small><p>{level.insight}</p></div><p className="result-record">{level.par && state.moves <= level.par ? "✧ 恰到好处！你找到了最短路线。" : level.par ? `还想再琢磨一下？这关存在 ${level.par} 步的路线。` : "这份发现，已经记在农场手记里了。"}</p>{!upcoming ? <p>{completed === LEVELS.length ? "24 道谜题都完成啦，也可以回头挑战更少步数。" : "这是最后一关。地图上还有没完成的谜题，可以随时回去探索。"}</p> : null}<div className="dialog-actions"><button type="button" onClick={restart}>再散步一次</button><button type="button" className="primary-button" onClick={() => upcoming ? play(upcoming) : setOverlay("map")}>{upcoming ? "去下一片小天地" : "看看农场地图"}<Icon name="arrow" /></button></div></> : <div className="dialog-actions"><button type="button" onClick={restart}>重新出发</button><button type="button" className="primary-button" onClick={undo}>撤销一步 <Icon name="undo" /></button></div>}</Modal> : null}
   </main>;
 }

@@ -32,6 +32,7 @@ const SOUND_RANK: Record<Sound, number> = {
   hat: 60,
   gold: 70,
   cut: 80,
+  fledge: 80,
   crack: 90,
   win: 100,
 };
@@ -56,6 +57,13 @@ export function at(state: GameState, p: Point): Cell | undefined {
 
 function same(a: Point, b: Point): boolean {
   return a.x === b.x && a.y === b.y;
+}
+
+// Coordinates and fixtures are immutable values; only changed cells are replaced.
+function cloneState(state: GameState): GameState {
+  return { ...state, cells: state.cells.map((cell) => ({ ...cell })),
+    worms: state.worms.map((worm) => ({ ...worm, segments: [...worm.segments] })),
+    hats: [...state.hats], flips: { ...state.flips } };
 }
 
 type SegRef = { wormIndex: number; segIndex: number };
@@ -170,17 +178,21 @@ function movePickup(state: GameState, from: Point, to: Point): void {
 }
 
 /** Slides a rock that is currently on water. Returns true if it moved at least once. */
-function slideRock(state: GameState, start: Point): boolean {
+function slideRock(state: GameState, start: Point, path: Point[]): boolean {
   let cursor = start;
   let moved = false;
-  for (let guard = 0; guard < 24; guard++) {
+  const visited = new Set<string>([`${start.x},${start.y}`]);
+  for (let guard = 0; guard < state.cells.length; guard++) {
     const cell = at(state, cursor);
     if (cell?.terrain !== "water" || !cell.flow || cell.pickup?.kind !== "rock") {
       return moved;
     }
     const next = add(cursor, cell.flow);
+    if (visited.has(`${next.x},${next.y}`)) return moved;
     if (!canLandRock(state, next, null)) return moved;
     movePickup(state, cursor, next);
+    path.push(next);
+    visited.add(`${next.x},${next.y}`);
     moved = true;
     cursor = next;
     if (at(state, cursor)?.terrain !== "water") return moved;
@@ -342,18 +354,22 @@ export function applyMove(
     if (destCell.pickup?.kind === "egg" && worm.carrying) return null;
   }
 
-  const next = structuredClone(state);
+  const next = cloneState(state);
   const moving = next.worms[wormIndex];
   if (!moving) return null;
   next.activeId = moving.id;
   next.moves += 1;
 
   let sound: Sound = "move";
+  const motion: NonNullable<StepResult["motion"]> = [];
   if (pushing) {
     const beyond = add(dest, dir);
+    const id = destCell.pickup?.kind === "rock" ? destCell.pickup.id : undefined;
+    const path = [dest, beyond];
     movePickup(next, dest, beyond);
     sound = "push";
-    if (slideRock(next, beyond)) sound = "splash";
+    if (slideRock(next, beyond, path)) sound = "splash";
+    if (id) motion.push({ id, path });
   }
 
   const cell = at(next, dest);
@@ -420,7 +436,35 @@ export function applyMove(
   if (rockTouchesWorm(next)) return null;
 
   const cut = resolveCuts(next);
-  return finish(next, sound, cut);
+  return { ...finish(next, sound, cut), motion };
+}
+
+/** Only chicks on an unused growing patch can leave the flock. No bird is lost. */
+export function fledgeCandidates(state: GameState, wormIndex: number): number[] {
+  if (state.won || state.lost) return [];
+  return state.worms[wormIndex]?.segments.flatMap((point, index) => {
+    const fixture = at(state, point)?.fixture;
+    return index > 0 && fixture?.kind === "roost" && !fixture.used ? [index] : [];
+  }) ?? [];
+}
+
+export function applyFledge(state: GameState, wormIndex: number, segmentIndex?: number): StepResult | null {
+  const candidates = fledgeCandidates(state, wormIndex);
+  const index = segmentIndex ?? candidates[0];
+  if (index === undefined || !candidates.includes(index)) return null;
+  const next = cloneState(state);
+  const original = next.worms[wormIndex]!;
+  const segments = original.segments.slice(index);
+  original.segments = original.segments.slice(0, index);
+  const head = segments[0]!;
+  const neck = segments[1];
+  const facing: Dir = neck ? head.x > neck.x ? "right" : head.x < neck.x ? "left" : head.y > neck.y ? "down" : "up" : original.facing;
+  const grown: Worm = { id: `w${next.nextWorm++}`, segments, facing, carrying: false };
+  next.worms.push(grown);
+  at(next, head)!.fixture = { kind: "roost", used: true };
+  next.activeId = grown.id;
+  next.moves += 1;
+  return finish(next, "fledge", false);
 }
 
 export function applySnip(state: GameState, wormIndex: number): StepResult | null {
@@ -438,7 +482,7 @@ export function applySnip(state: GameState, wormIndex: number): StepResult | nul
   const cutIndex = middle ?? onScissors[0];
   if (cutIndex === undefined) return null;
 
-  const next = structuredClone(state);
+  const next = cloneState(state);
   const target = next.worms[wormIndex];
   if (!target) return null;
   next.activeId = target.id;

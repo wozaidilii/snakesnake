@@ -13,13 +13,14 @@ export type Fixture =
   | { kind: "exit" }
   | { kind: "daisy" }
   | { kind: "scissors" }
+  | { kind: "roost"; used: boolean }
   | { kind: "crack" }
   | { kind: "nest"; filled: boolean }
   | { kind: "lock" };
 
 /** A thing that is picked up or pushed. A cell has at most one. */
 export type Pickup =
-  | { kind: "rock" }
+  | { kind: "rock"; id?: string }
   | { kind: "apple" }
   | { kind: "gold" }
   | { kind: "egg" }
@@ -67,6 +68,7 @@ export type Sound =
   | "grow"
   | "gold"
   | "cut"
+  | "fledge"
   | "egg"
   | "crack"
   | "win"
@@ -80,6 +82,7 @@ export type Sound =
 export type StepResult = {
   state: GameState;
   sound: Sound;
+  motion?: { id: string; path: Point[] }[];
 };
 
 export type WorldId = "soil" | "runnel" | "nursery" | "shear";
@@ -89,7 +92,9 @@ export type Level = {
   hints?: string[];
   insight?: string;
   challenge?: boolean;
-  difficulty?: 1 | 2 | 3;
+  difficulty?: 1 | 2 | 3 | 4 | 5;
+  tutorial?: boolean;
+  requires?: ("fledge" | "push" | "grow" | "water")[];
   id: string;
   world: WorldId;
   name: string;

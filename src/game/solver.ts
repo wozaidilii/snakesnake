@@ -1,93 +1,70 @@
-import { applyMove, applySnip } from "./engine";
-import type { Cell, Dir, GameState } from "./types";
-import { DIRS } from "./engine";
+import { applyFledge, applyMove, applySnip, DIRS, fledgeCandidates } from "./engine";
+import type { Dir, GameState, StepResult } from "./types";
 
-function fixtureCode(cell: Cell): string {
-  const fixture = cell.fixture;
-  if (!fixture) return ".";
-  if (fixture.kind === "button") return fixture.color === "red" ? "B" : "b";
-  if (fixture.kind === "door") return fixture.color === "red" ? "D" : "d";
-  if (fixture.kind === "nest") return fixture.filled ? "n" : "N";
-  if (fixture.kind === "exit") return "X";
-  if (fixture.kind === "daisy") return "*";
-  if (fixture.kind === "scissors") return "S";
-  if (fixture.kind === "crack") return "!";
-  return "L";
-}
-
-function pickupCode(cell: Cell): string {
-  const pickup = cell.pickup;
-  if (!pickup) return ".";
-  if (pickup.kind === "hat") return "H";
-  return pickup.kind[0] ?? "?";
-}
-
+/** Static geometry is fixed within a search; encode only mutable facts. */
 export function hashState(state: GameState): string {
-  let hash = `${state.keys}|${state.flips.red ? 1 : 0}${state.flips.blue ? 1 : 0}|${state.lost ?? ""}|${state.won ? 1 : 0}|${[...state.hats].sort().join(",")}|`;
-  for (const cell of state.cells) {
-    hash += `${cell.terrain[0] ?? "?"}${cell.flow?.[0] ?? "."}${fixtureCode(cell)}${pickupCode(cell)};`;
-  }
-  const worms = state.worms
-    .map((worm) => {
-      const body = worm.segments.map((seg) => `${seg.x},${seg.y}`).join(".");
-      return `${state.gentle ? worm.id : ""}:${worm.carrying ? "1" : "0"}:${body}`;
-    })
-    .sort();
-  hash += worms.join("|");
-  return hash;
+  let hash = `${state.levelId}|${state.keys}|${+state.flips.red}${+state.flips.blue}|${state.lost ?? ""}|${+state.won}|${[...state.hats].sort().join(",")}|`;
+  state.cells.forEach((cell, i) => {
+    const f = cell.fixture;
+    const mutable = `${cell.terrain === "dirt" ? "," : ""}${cell.pickup?.kind[0] ?? ""}${f?.kind === "nest" ? f.filled ? "n" : "N" : f?.kind === "roost" ? f.used ? "s" : "S" : f?.kind === "lock" ? "L" : ""}`;
+    if (mutable) hash += `${i.toString(36)}:${mutable};`;
+  });
+  return hash + state.worms.map((worm) => `${state.gentle ? worm.id : ""}:${+worm.carrying}:${worm.segments.map((p) => (p.y * state.width + p.x).toString(36)).join(".")}`).sort().join("|");
 }
 
-export type SolveResult = {
-  ok: boolean;
-  reason: "solved" | "stuck" | "budget";
-  nodes: number;
-  moves: number;
-  path: { wormId: string; dir: Dir | "snip" }[];
-};
-
-export function solve(
-  start: GameState,
-  options?: { needHat?: boolean; maxNodes?: number; maxMoves?: number },
-): SolveResult {
-  const maxNodes = options?.maxNodes ?? 80_000;
-  const maxMoves = options?.maxMoves ?? 100;
-  const needHat = options?.needHat ?? false;
-  type Node = { state: GameState; parent: number; action?: SolveResult["path"][number] };
+export type Action = { wormId: string; dir: Dir | "snip" | "fledge"; segmentIndex?: number };
+export function replayAction(state: GameState, action: Action): StepResult | null {
+  const index = state.worms.findIndex((worm) => worm.id === action.wormId);
+  return action.dir === "fledge" ? applyFledge(state, index, action.segmentIndex)
+    : action.dir === "snip" ? applySnip(state, index) : applyMove(state, index, action.dir);
+}
+export type SolveResult = { ok: boolean; reason: "solved" | "stuck" | "budget"; nodes: number; moves: number; path: Action[] };
+export type SolveOptions = { needHat?: boolean; maxNodes?: number; maxMoves?: number; forbid?: "fledge" | "push" | "grow" | "water" };
+export function solve(start: GameState, options: SolveOptions = {}): SolveResult {
+  const maxNodes = options.maxNodes ?? 250_000;
+  const maxMoves = options.maxMoves ?? 150;
+  type Node = { state?: GameState; parent: number; action?: Action };
   const queue: Node[] = [{ state: start, parent: -1 }];
   const seen = new Set<string>([hashState(start)]);
   let cursor = 0;
-
+  let depthLimited = false;
   while (cursor < queue.length) {
-    if (seen.size > maxNodes) {
-      return { ok: false, reason: "budget", nodes: seen.size, moves: 0, path: [] };
-    }
-    const state = queue[cursor]?.state;
-    cursor += 1;
-    if (!state || state.moves > maxMoves) continue;
+    if (seen.size > maxNodes) return { ok: false, reason: "budget", nodes: seen.size, moves: 0, path: [] };
+    const node = queue[cursor++]!;
+    const state = node.state!;
+    node.state = undefined;
     if (state.won) {
-      if (!needHat || state.hats.length > 0) {
-        const path: SolveResult["path"] = [];
-        let node = queue[cursor - 1];
-        while (node?.action) { path.push(node.action); node = queue[node.parent]; }
-        return { ok: true, reason: "solved", nodes: seen.size, moves: state.moves, path: path.reverse() };
+      if (!options.needHat || state.hats.length > 0) {
+        const path: Action[] = [];
+        let ancestor: Node | undefined = node;
+        while (ancestor?.action) { path.push(ancestor.action); ancestor = queue[ancestor.parent]; }
+        return { ok: true, reason: "solved", nodes: seen.size, moves: state.moves - start.moves, path: path.reverse() };
       }
       continue;
     }
     if (state.lost) continue;
-
-    for (let wormIndex = 0; wormIndex < state.worms.length; wormIndex++) {
+    if (state.moves - start.moves >= maxMoves) { depthLimited = true; continue; }
+    for (let wi = 0; wi < state.worms.length; wi++) {
+      const wormId = state.worms[wi]!.id;
       for (const dir of DIRS) {
-        const step = applyMove(state, wormIndex, dir);
-        if (step) enqueue(step.state, { wormId: state.worms[wormIndex]!.id, dir });
+        const step = applyMove(state, wi, dir);
+        if (!step || step.state.lost) continue;
+        if (options.forbid === "push" && step.motion?.length) continue;
+        if (options.forbid === "water" && step.motion?.some((motion) => motion.path.length > 2)) continue;
+        if (options.forbid === "grow" && step.state.worms[wi]!.segments.length > state.worms[wi]!.segments.length) continue;
+        enqueue(step.state, { wormId, dir });
       }
-      const snip = applySnip(state, wormIndex);
-      if (snip) enqueue(snip.state, { wormId: state.worms[wormIndex]!.id, dir: "snip" });
+      if (options.forbid !== "fledge") for (const segmentIndex of fledgeCandidates(state, wi)) {
+        enqueue(applyFledge(state, wi, segmentIndex)!.state, { wormId, dir: "fledge", segmentIndex });
+      }
+      if (!state.gentle) {
+        const snip = applySnip(state, wi);
+        if (snip && !snip.state.lost) enqueue(snip.state, { wormId, dir: "snip" });
+      }
     }
   }
-
-  return { ok: false, reason: "stuck", nodes: seen.size, moves: 0, path: [] };
-
-  function enqueue(state: GameState, action: SolveResult["path"][number]) {
+  return { ok: false, reason: depthLimited ? "budget" : "stuck", nodes: seen.size, moves: 0, path: [] };
+  function enqueue(state: GameState, action: Action) {
     const key = hashState(state);
     if (seen.has(key)) return;
     seen.add(key);

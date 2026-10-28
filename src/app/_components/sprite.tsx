@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useId, type CSSProperties } from "react";
 
 const SPRITES = { hen: 0, chick: 1, berries: 2, egg: 3, nest: 4, filledNest: 5,
   barrel: 6, stone: 7, gate: 8, openGate: 9, plate: 10, pressedPlate: 11,
@@ -6,15 +6,20 @@ const SPRITES = { hen: 0, chick: 1, berries: 2, egg: 3, nest: 4, filledNest: 5,
 export type SpriteName = keyof typeof SPRITES;
 // Optical crop bounds avoid neighboring pixels from the generated atlas.
 const CROPS: Record<SpriteName, string> = {
-  hen: "20 20 330 330", chick: "350 25 290 320", berries: "650 35 310 320", egg: "970 35 300 320",
-  nest: "20 375 330 275", filledNest: "350 365 330 285", barrel: "680 350 280 300", stone: "980 350 290 300",
-  gate: "20 665 330 255", openGate: "350 665 320 255", plate: "665 680 315 245", pressedPlate: "980 680 292 245",
-  corn: "35 930 300 315", flower: "350 905 290 340", sign: "675 930 300 310", grass: "980 945 290 300",
+  hen: "20 30 340 350", chick: "380 130 240 245", berries: "665 150 290 230", egg: "985 165 245 220",
+  nest: "20 440 315 225", filledNest: "345 440 310 225", barrel: "665 410 285 255", stone: "970 450 280 220",
+  gate: "20 685 320 250", openGate: "345 685 330 250", plate: "680 725 280 195", pressedPlate: "965 735 285 190",
+  corn: "25 950 310 295", flower: "350 960 300 285", sign: "645 955 330 295", grass: "965 995 285 260",
 };
 
 export function Sprite({ name, className = "", style }: { name: SpriteName; className?: string; style?: CSSProperties }) {
+  const clipId = useId();
+  const [x, y, width, height] = CROPS[name].split(" ");
   return <span aria-hidden="true" className={`sprite sprite-${name} ${className}`} style={style}>
-    <svg viewBox={CROPS[name]} width="100%" height="100%" focusable="false"><image href="/art/farm-atlas.png" width="1280" height="1280" /></svg>
+    <svg viewBox={CROPS[name]} width="100%" height="100%" focusable="false">
+      <defs><clipPath id={clipId}><rect x={x} y={y} width={width} height={height} /></clipPath></defs>
+      <image href="/art/farm-atlas-v2.png" width="1280" height="1280" clipPath={`url(#${clipId})`} />
+    </svg>
   </span>;
 }
 

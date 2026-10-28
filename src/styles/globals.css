@@ -229,6 +229,11 @@ kbd { font: 8px system-ui; border: 1px solid #dcd3bf; border-radius: 3px; backgr
 .map-chapters button span { flex: 1; }
 .map-chapters button small { display: inline-block; color: #a59263; font-size: 8px; margin-left: 6px; }
 .is-bonk { animation: bonk 160ms ease-out; }
+/* Keep instructional copy legible against the textured paper. */
+.field-tip > p, .field-guide > div, .quest-footer, .goal-row small, .keyboard-tip, .touch-tip { color: #82765d; }
+.level-button { font-size: 12px; }
+.goal-row strong { font-size: 12px; }
+.field-tip > p { font-size: 12px; }
 @keyframes bonk { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 @media (min-width: 1450px) { .game-layout { grid-template-columns: 224px minmax(340px, 610px) 240px; } }
 @media (min-width: 991px) and (max-height: 850px) {
@@ -299,7 +304,7 @@ kbd { font: 8px system-ui; border: 1px solid #dcd3bf; border-radius: 3px; backgr
   .garden-path span:not(.sprite) { font-size: 10px; }
   .land-corner .sprite { width: 31px; height: 31px; }
   .home-label { font-size: 7px; bottom: -3px; padding: 0 2px; }
-  .control-dock { gap: 13px; margin-top: 22px; }
+  .control-dock { gap: 13px; margin-top: 22px; flex-wrap: wrap; }
   .directions { gap: 8px; }
   .direction-button { width: 45px; height: 45px; font-size: 27px; }
   .tool-button { min-width: 34px; font-size: 9px; }
@@ -333,3 +338,60 @@ kbd { font: 8px system-ui; border: 1px solid #dcd3bf; border-radius: 3px; backgr
 }
 @media (max-width: 374px) { .henyard-app { padding: 0 10px; } .direction-button { width: 39px; } .control-dock { gap: 9px; } .directions { gap: 6px; } .field-notes { gap: 12px; } }
 @media (prefers-reduced-motion: reduce) { *, *:before, *:after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+/* The growing patch is an action, not decorative terrain. */
+.props-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.moving-crate { position: absolute; display: grid; place-items: center; }
+.moving-crate .sprite { width: 87%; height: 87%; }
+.bird.baby:disabled { opacity: 1; pointer-events: none; }
+.bird.can-fledge { pointer-events: auto; cursor: pointer; border-radius: 50%; outline: 2px dashed #fff3aa; outline-offset: -3px; background: #d2f1ac40; animation: seed-glow 1.5s ease-in-out infinite; }
+.fledge-badge { position: absolute; top: -4px; right: 0; font: bold 9px system-ui; background: #fbefb3; color: #386f5f; padding: 1px 4px; border-radius: 4px; box-shadow: 0 1px 2px #2c5339; }
+.grown-hen > .sprite-hen { filter: hue-rotate(16deg) saturate(.88); }
+.grown-hen .hen-number { background: #d8e9d5; border-color: #5e8978; color: #355b50; }
+.bird.is-active::before { content: ""; position: absolute; inset: 18% 4% 1%; border: 2px solid #fff2bf; border-radius: 50%; opacity: .85; }
+.tile.roost { background-color: #9aa95b; }
+.tile.roost .tile-fixture { width: 86%; height: 86%; }
+.roost-marker { position: absolute; bottom: 0; right: 1px; font: bold 9px system-ui; color: #fdf3bd; text-shadow: 0 1px 1px #4a6037; }
+.tile.roost-used .tile-fixture { opacity: .35; filter: saturate(.2); }
+.tile.roost-used { background-color: #8e9f60; }
+.tile.door.activated .tile-fixture, .tile.nest-filled .tile-fixture { animation: fixture-pop 240ms ease-out; }
+.plate-marker { background: #6c8290; color: #fbf2d7; border-radius: 50%; width: 37%; height: 30%; left: 31%; top: 39%; display: grid; place-items: center; font-size: 15px; }
+.gate-marker.blue { background: #6c8290; color: #fff5dd; }
+.gate-marker.red { background: #ba794e; color: #fff3d1; }
+.board-feedback { position: absolute; z-index: 100; pointer-events: none; padding: 3px 7px; border-radius: 8px; background: #fbf2cd; border: 1px solid #8d9868; color: #476648; font-size: 10px; white-space: nowrap; animation: float-note 850ms ease-out forwards; }
+.flock-tools { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 14px 0 -6px; }
+.flock-tools > span { font-size: 10px; color: #77775c; max-width: 210px; line-height: 1.6; }
+.fledge-button { min-height: 42px; display: flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid #c8cfb0; border-radius: 7px; font-size: 11px; color: #4c6b55; background: #e8edda; }
+.fledge-button .sprite { width: 26px; height: 26px; }
+.fledge-button.ready { border-color: #6b926f; background: #e1efc9; box-shadow: 0 2px 0 #93aa78; }
+.fledge-button:disabled { opacity: .65; }
+.control-dock { flex-wrap: wrap; }
+.keyboard-tip { flex-wrap: wrap; }
+.tile.water .flow { animation: stream-flow 1.8s ease-in-out infinite; }
+@keyframes seed-glow { 50% { box-shadow: 0 0 11px #fff7b8; } }
+@keyframes fixture-pop { 50% { translate: 0 -6%; scale: 1.05; } }
+@keyframes float-note { 0% { transform: translate(-50%, 0); opacity: 0; } 18% { opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(-50%, -25px); opacity: 0; } }
+@keyframes stream-flow { 50% { opacity: .45; } }
+@media (max-width: 680px) {
+ .flock-tools { margin-top: 13px; }
+ .flock-tools > span { max-width: 165px; font-size: 9px; }
+ .fledge-button { min-height: 44px; }
+ .control-dock { row-gap: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .board-feedback { animation: none; display: none; }
+ .tile.water .flow, .bird.can-fledge { animation: none; }
+}
+.control-dock { gap: 8px; }
+.directions { gap: 6px; }
+.direction-button { width: 40px; height: 44px; }
+.tool-button { min-width: 30px; min-height: 44px; justify-content: center; }
+@media (max-width: 680px) {
+ .control-dock { gap: 4px; }
+ .direction-button { width: 44px; height: 46px; }
+ .tool-button { min-width: 44px; }
+}
+@media (max-width: 370px) {
+ .control-dock { display: grid; grid-template-columns: repeat(3, 44px); gap: 8px; justify-content: center; }
+ .directions { grid-column: 1 / -1; justify-self: center; }
+ .dock-divider { display: none; }
+}
