@@ -26,23 +26,24 @@ export function Shaft({
     <div className="loam-shaft">
       <header className="loam-hero">
         <p className="loam-mark">
-          壤虫 <span>Loamly</span>
+          老母鸡 <span>Henyard</span>
         </p>
-        <h1>往下挖。</h1>
+        <h1>带上小鸡。</h1>
         <p>
-          十档，每档 20 关。金苹果、第二条虫、剪刀和锁会一层层叠上来。已挖通{" "}
+          十栏。新玩法只演示一次，后面是要动脑的题。已收好{" "}
           {save.cleared.length} / {LEVELS.length}。
         </p>
         {frontier ? (
           <button type="button" className="loam-go" onClick={() => onPlay(frontier)}>
-            {save.cleared.length === 0 ? "从第一口开始" : "继续往下"}
+            {save.cleared.length === 0 ? "从第一栏开始" : "接着走"}
           </button>
         ) : null}
       </header>
       {TIERS.map((tier, tierIndex) => {
         const levels = levelsInTier(tier.id);
         const done = levels.length > 0 && levels.every((level) => save.cleared.includes(level.id));
-        const shade = `hsl(28 ${48 - tierIndex * 3}% ${62 - tierIndex * 4}%)`;
+        const pens = ["#e7c98a", "#d7e4b4", "#f0d2a8", "#e8d7b0", "#f3cbb8", "#e6d7a2", "#d5ddb4", "#f2d7b0", "#e8c8a8", "#dce6c4"];
+        const shade = pens[tierIndex] ?? "#e7c98a";
         return (
           <section key={tier.id} className="loam-stratum" style={{ ["--stratum" as string]: shade }}>
             <div className="loam-stratum-copy">
@@ -71,9 +72,9 @@ export function Shaft({
                         <strong>{level.name}</strong>
                         <small>
                           {WORLDS.find((item) => item.id === level.world)?.name ?? ""}
-                          {clear ? " · 挖通了" : open ? " · 可以钻" : " · 还埋着"}
+                          {clear ? " · 收好了" : open ? " · 可以走" : " · 还关着"}
                           {matched ? " · 最短" : ""}
-                          {hat ? (hatted ? " · 帽子戴上了" : " · 有帽子") : ""}
+                          {hat ? (hatted ? " · 草帽戴上了" : " · 有草帽") : ""}
                         </small>
                       </span>
                     </button>
@@ -83,7 +84,7 @@ export function Shaft({
             </ol>
             {tier.id === "5" || tier.id === "10" ? (
               <button type="button" className="loam-rest" disabled={!done} onClick={() => onJigsaw(tier.id)}>
-                {done ? "歇口气，拼图" : "这一档都挖通之后，可以拼图"}
+                {done ? "歇口气，拼图" : "这一栏都收好之后，可以拼图"}
                 {save.jigsaws.includes(tier.id) ? " · 拼过了" : ""}
               </button>
             ) : null}
@@ -91,7 +92,7 @@ export function Shaft({
         );
       })}
       <footer className="loam-foot">
-        原创关卡、画面和声音。玩法是吃土再排出、变长、推石头、水流、运蛋、滑门和剪刀分身。
+        原创关卡、画面和声音。玩法是啄谷再排出、带上小鸡、推木桶、水渠、送蛋、栅门和篱剪分群。
       </footer>
     </div>
   );

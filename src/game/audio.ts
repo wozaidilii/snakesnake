@@ -59,7 +59,7 @@ export function playSound(sound: Sound): void {
   } else if (sound === "no") tone(110, now, 0.05, "sine", 0.02);
 }
 
-/** A short original hum. The worm just likes the sound of dirt. */
+/** A short original cluck. The hen likes the sound of the yard. */
 export function sing(): void {
   const ctx = audio();
   if (!ctx) return;

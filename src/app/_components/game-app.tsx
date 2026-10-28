@@ -248,7 +248,7 @@ export function GameApp() {
   if (!booted) {
     return (
       <main className="loam-app">
-        <p className="loam-loading">正在扒开表土…</p>
+        <p className="loam-loading">正在打开鸡舍的门…</p>
       </main>
     );
   }
@@ -257,7 +257,7 @@ export function GameApp() {
     return (
       <main className="loam-app">
         <Jigsaw
-          worldName={jigsawWorld === "10" ? "第十档" : "第五档"}
+          worldName={jigsawWorld === "10" ? "第十栏" : "第五栏"}
           onBack={() => setView("shaft")}
           onSolved={() => {
             commitRef.current(
@@ -295,13 +295,13 @@ export function GameApp() {
   return (
     <main className="loam-app is-play">
       <header className="loam-playbar">
-        <button type="button" className="loam-icon" onClick={() => setView("shaft")} aria-label="回到竖井">
+        <button type="button" className="loam-icon" onClick={() => setView("shaft")} aria-label="回到农庄">
           ←
         </button>
         <div className="loam-play-title">
           <p className="loam-kicker">
             {world?.name}
-            {state.worms.length > 1 ? ` · 虫 ${wormNo}/${state.worms.length}` : ""}
+            {state.worms.length > 1 ? ` · 母鸡 ${wormNo}/${state.worms.length}` : ""}
             {` · 第 ${state.moves} 步`}
           </p>
           <h1>{level.name}</h1>
@@ -309,7 +309,7 @@ export function GameApp() {
         </div>
         <div className="loam-play-actions">
           {state.worms.length > 1 ? (
-            <button type="button" className="loam-icon" onClick={swap} aria-label="换一条虫">
+            <button type="button" className="loam-icon" onClick={swap} aria-label="换一只母鸡">
               换
             </button>
           ) : null}
@@ -359,26 +359,26 @@ export function GameApp() {
       </div>
       {state.won ? (
         <div className="loam-card" role="dialog" aria-label="过关">
-          <h2>洞口开了</h2>
+          <h2>鸡舍门开了</h2>
           <p>
-            {level.name}挖通了。
+            {level.name}收好了。
             {level.par ? `最短 ${level.par} 步，你用了 ${state.moves} 步。` : `用了 ${state.moves} 步。`}
             {level.par && state.moves <= level.par ? "和最短一样短。" : ""}
-            {hatOnMap && state.hats.length === 0 ? "这层的帽子还在土里。" : ""}
+            {hatOnMap && state.hats.length === 0 ? "这栏的草帽还在院子里。" : ""}
           </p>
           <div className="loam-card-actions">
             {hatOnMap && state.hats.length === 0 ? (
               <button type="button" onClick={restart}>
-                再挖一次
+                再走一趟
               </button>
             ) : null}
             {upcoming ? (
               <button type="button" onClick={() => play(upcoming)}>
-                继续往下
+                下一栏
               </button>
             ) : (
               <button type="button" onClick={() => setView("shaft")}>
-                回到竖井
+                回到农庄
               </button>
             )}
           </div>
@@ -399,9 +399,9 @@ export function GameApp() {
         </div>
       ) : null}
       {state.lost === "dead" ? (
-        <div className="loam-card" role="dialog" aria-label="没有虫了">
-          <h2>没有虫了</h2>
-          <p>剪得太干净。撤销，或者重来。</p>
+        <div className="loam-card" role="dialog" aria-label="没有母鸡了">
+          <h2>没有母鸡了</h2>
+          <p>队伍剪没了。撤销，或者重来。</p>
           <div className="loam-card-actions">
             <button type="button" onClick={undo}>
               撤销

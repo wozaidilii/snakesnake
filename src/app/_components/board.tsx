@@ -23,44 +23,99 @@ import {
   Scissors,
 } from "./glyphs";
 
-const PALETTE = [
-  { body: "#ff7b66", belly: "#ffe4d4", cheek: "#ff5d78" },
-  { body: "#73b85d", belly: "#e9f8d4", cheek: "#ff5d78" },
-  { body: "#54a8d8", belly: "#e4f6ff", cheek: "#ff5d78" },
-  { body: "#e58cba", belly: "#ffe6f3", cheek: "#ff5d78" },
-];
-
 type Pt = { x: number; y: number };
 type Track = { from: Pt[]; to: Pt[]; t0: number };
 
 const SLIDE_MS = 150;
 
-function beadsAlong(points: Pt[], step: number): Pt[] {
-  const first = points[0];
-  if (!first) return [];
-  if (points.length === 1) return [];
-  const out: Pt[] = [];
-  for (let index = 0; index < points.length - 1; index++) {
-    const from = points[index];
-    const to = points[index + 1];
-    if (!from || !to) continue;
-    const distance = Math.hypot(to.x - from.x, to.y - from.y);
-    const count = Math.max(1, Math.round(distance / step));
-    for (let stepIndex = 0; stepIndex < count; stepIndex++) {
-      const t = stepIndex / count;
-      out.push({
-        x: from.x + (to.x - from.x) * t,
-        y: from.y + (to.y - from.y) * t,
-      });
-    }
-  }
-  return out;
-}
-
 function align(from: Pt[], to: Pt[]): Pt[] {
   if (from.length === to.length) return from;
   if (to.length === from.length + 1 && from[0]) return [from[0], ...from];
   return to.map((point, index) => from[index] ?? point);
+}
+
+function facingDeg(dir: string): number {
+  if (dir === "right") return 90;
+  if (dir === "down") return 180;
+  if (dir === "left") return -90;
+  return 0;
+}
+
+function aimDeg(dx: number, dy: number): number {
+  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return 0;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 90 : -90;
+  return dy >= 0 ? 180 : 0;
+}
+
+function HenArt({
+  radius,
+  active,
+  stuck,
+  carrying,
+  hatted,
+}: {
+  radius: number;
+  active: boolean;
+  stuck: boolean;
+  carrying: boolean;
+  hatted: boolean;
+}) {
+  const eyeY = stuck ? 0.45 : 1.45;
+  const pupilY = stuck ? -6.9 : -7.9;
+  return (
+    <g transform={`scale(${radius / 11})`}>
+      <ellipse cx="0" cy="5" rx="11" ry="3.2" fill="#6b4428" opacity="0.18" />
+      <ellipse cx="-5.4" cy="9.2" rx="2.7" ry="4.3" fill="#fffdf8" transform="rotate(-18 -5.4 9.2)" />
+      <ellipse cx="0" cy="10.6" rx="2.8" ry="4.6" fill="#f4efe6" />
+      <ellipse cx="5.4" cy="9.2" rx="2.7" ry="4.3" fill="#fffdf8" transform="rotate(18 5.4 9.2)" />
+      <ellipse cx="0" cy="1" rx="9.2" ry="8.2" fill="#fffdf8" stroke="#e4d3bc" strokeWidth="0.8" />
+      <ellipse cx="0" cy="3.1" rx="5.4" ry="3.8" fill="#f6f0e6" />
+      <ellipse cx="-8.4" cy="2" rx="2.8" ry="4.3" fill="#f3ece3" stroke="#e4d3bc" strokeWidth="0.55" transform="rotate(-28 -8.4 2)" />
+      <ellipse cx="8.4" cy="2" rx="2.8" ry="4.3" fill="#f3ece3" stroke="#e4d3bc" strokeWidth="0.55" transform="rotate(28 8.4 2)" />
+      <path d="M-3.4 8.4l-1.4 2.6M-3.4 8.4l1 2.6M3.4 8.4l1.4 2.6M3.4 8.4l-.8 2.6" fill="none" stroke="#e39a2b" strokeWidth="1.15" strokeLinecap="round" />
+      <circle cx="0" cy="-7.4" r="5.15" fill="#fffdf8" stroke="#e4d3bc" strokeWidth="0.8" />
+      <path d="M-2.7-11.2c.35-2.3 1.55-2.7 1.85-.15.45-2.4 1.65-2.7 1.95.15.55-2.05 1.75-1.85 1.4.65-.9.85-3.9.75-5.2-.65z" fill="#d23b3b" />
+      <path d="M-1.7-11.7 L0-15.4 L1.7-11.7 Z" fill="#f08a1a" />
+      <ellipse cx="2.3" cy="-9.5" rx="1.15" ry="1.7" fill="#c43232" />
+      <g className={stuck ? undefined : "is-blink"}>
+        <ellipse cx="-1.9" cy="-7.5" rx="1.55" ry={eyeY} fill="#fff" />
+        <ellipse cx="1.9" cy="-7.5" rx="1.55" ry={eyeY} fill="#fff" />
+        <circle cx="-1.9" cy={pupilY} r="0.72" fill="#2a1c14" />
+        <circle cx="1.9" cy={pupilY} r="0.72" fill="#2a1c14" />
+        <circle cx="-2.3" cy="-8.2" r="0.32" fill="#fff" />
+        <circle cx="1.5" cy="-8.2" r="0.32" fill="#fff" />
+      </g>
+      {carrying ? <ellipse cx="0" cy="-16.8" rx="2.4" ry="3" fill="#fff6ea" stroke="#e7c9a4" strokeWidth="0.6" /> : null}
+      {hatted ? (
+        <g>
+          <ellipse cx="0" cy="-13.2" rx="6.6" ry="1.8" fill="#e6c36a" />
+          <path d="M-3.1-13.2c.3-3.2 1.5-5 3.1-5s2.8 1.8 3.1 5z" fill="#f0d48a" />
+          <path d="M-2.6-13.2h5.2" stroke="#b6402c" strokeWidth="0.9" />
+        </g>
+      ) : null}
+      {active ? (
+        <ellipse cx="0" cy="0.5" rx="13.6" ry="14.8" fill="none" stroke="#c9842a" strokeWidth="1.15" strokeDasharray="3.2 2.2" />
+      ) : null}
+    </g>
+  );
+}
+
+function ChickArt({ radius }: { radius: number }) {
+  return (
+    <g transform={`scale(${radius / 11})`}>
+      <ellipse cx="0" cy="4.2" rx="6.4" ry="2" fill="#6b4428" opacity="0.16" />
+      <circle cx="0" cy="1" r="6.3" fill="#ffd24a" stroke="#e2b03a" strokeWidth="0.65" />
+      <ellipse cx="0" cy="2.6" rx="3.5" ry="2.5" fill="#ffe9a0" />
+      <ellipse cx="-5.4" cy="1.2" rx="1.7" ry="2.5" fill="#f2c043" transform="rotate(-28 -5.4 1.2)" />
+      <ellipse cx="5.4" cy="1.2" rx="1.7" ry="2.5" fill="#f2c043" transform="rotate(28 5.4 1.2)" />
+      <circle cx="0" cy="-4.4" r="3.55" fill="#ffe566" stroke="#e2b03a" strokeWidth="0.55" />
+      <path d="M-1.15-6.6c.2-1.5.7-1.8 1.15-.2.35-1.5 1-1.6 1.15.15-.5.35-1.5.35-2.3.05z" fill="#f08a1a" />
+      <path d="M-1.25-7 L0-9.6 L1.25-7 Z" fill="#f08a1a" />
+      <circle cx="-1.25" cy="-4.55" r="0.62" fill="#2a1c14" />
+      <circle cx="1.25" cy="-4.55" r="0.62" fill="#2a1c14" />
+      <path d="M-2.2 6.2l-1 2M-2.2 6.2l.8 2M2.2 6.2l1 2M2.2 6.2l-.7 2" fill="none" stroke="#e39a2b" strokeWidth="0.9" strokeLinecap="round" />
+    </g>
+  );
 }
 
 function sample(track: Track, now: number): Pt[] {
@@ -216,7 +271,7 @@ export function Board({
           stepToward(x, y);
         }}
         role="application"
-        aria-label="壤虫的洞穴"
+        aria-label="谷场"
       >
         <div className="loam-grid" style={{ gridTemplateColumns: `repeat(${state.width}, ${size}px)` }}>
           {state.cells.map((cell, index) => {
@@ -280,7 +335,7 @@ export function Board({
             </filter>
           </defs>
           <rect width="100%" height="100%" filter="url(#loam-grain)" opacity="0.07" style={{ pointerEvents: "none" }} />
-          {state.worms.map((worm, index) => {
+          {state.worms.map((worm) => {
             const track = tracks.current.get(worm.id);
             const body = track
               ? sample(track, now)
@@ -290,93 +345,49 @@ export function Board({
                 }));
             const head = body[0];
             if (!head) return null;
-            const radius = size * 0.36;
-            const paint = PALETTE[index % PALETTE.length] ?? PALETTE[0]!;
+            const radius = size * 0.34;
             const activeWorm = worm.id === state.activeId;
-            const look = worm.facing;
-            const pupilX = look === "left" ? -1 : look === "right" ? 1 : 0;
-            const pupilY = look === "up" ? -1 : look === "down" ? 1 : stuck && activeWorm ? 0.35 : 0;
-            const eye = stuck && activeWorm ? 0.28 : 0.22;
-            const pupil = stuck && activeWorm ? 0.14 : 0.09;
             const sliding = track ? now - track.t0 < SLIDE_MS : false;
-            const stretch = sliding ? 1.06 : 1;
-            const beads = beadsAlong(body, radius * 0.62);
+            const rot = facingDeg(worm.facing);
             return (
               <g key={worm.id}>
-                {beads.map((bead, beadIndex) => (
-                  <g key={beadIndex}>
-                    <circle cx={bead.x} cy={bead.y + 3} r={radius * 0.96} fill="#2a160e" opacity="0.14" />
-                    <circle cx={bead.x} cy={bead.y} r={radius * 0.98} fill={paint.body} />
-                    <ellipse cx={bead.x} cy={bead.y + radius * 0.22} rx={radius * 0.46} ry={radius * 0.28} fill={paint.belly} opacity="0.9" />
-                    <circle cx={bead.x - radius * 0.28} cy={bead.y - radius * 0.32} r={radius * 0.28} fill="#fff" opacity="0.16" />
-                  </g>
-                ))}
+                {body.slice(1).map((point, chickIndex) => {
+                  const prev = body[chickIndex] ?? point;
+                  return (
+                    <g
+                      key={chickIndex}
+                      transform={`translate(${point.x} ${point.y + (chickIndex % 2 === 0 ? -1 : 1)}) rotate(${aimDeg(prev.x - point.x, prev.y - point.y)})`}
+                    >
+                      <ChickArt radius={radius * 0.82} />
+                    </g>
+                  );
+                })}
                 <g
-                  transform={`translate(${head.x} ${head.y}) scale(${stretch} ${2 - stretch})`}
+                  transform={`translate(${head.x} ${head.y}) rotate(${rot}) scale(${sliding ? 0.96 : 1} ${sliding ? 1.05 : 1})`}
                   style={{ pointerEvents: "auto", cursor: "pointer" }}
                   onPointerDown={(event) => {
                     event.stopPropagation();
                     onFocusWorm(worm.id);
                   }}
                 >
-                  <circle cy="3" r={radius * 1.05} fill="#2a160e" opacity="0.16" />
-                  {body.length === 1 ? (
-                    <ellipse
-                      cx={look === "left" ? radius * 0.55 : look === "right" ? -radius * 0.55 : 0}
-                      cy={look === "up" ? radius * 0.55 : look === "down" ? -radius * 0.55 : 0}
-                      rx={look === "up" || look === "down" ? radius * 0.62 : radius * 0.78}
-                      ry={look === "up" || look === "down" ? radius * 0.78 : radius * 0.62}
-                      fill={paint.body}
-                    />
-                  ) : null}
-                  <circle r={radius * 1.16} fill={paint.body} />
-                  <ellipse cx={-radius * 0.32} cy={-radius * 0.4} rx={radius * 0.42} ry={radius * 0.26} fill="#fff" opacity="0.28" />
-                  <ellipse
-                    cx={look === "left" ? -radius * 0.72 : look === "right" ? radius * 0.72 : 0}
-                    cy={look === "up" ? -radius * 0.72 : look === "down" ? radius * 0.72 : radius * 0.15}
-                    rx={radius * 0.34}
-                    ry={radius * 0.26}
-                    fill={paint.body}
+                  <HenArt
+                    radius={radius}
+                    active={activeWorm}
+                    stuck={stuck && activeWorm}
+                    carrying={worm.carrying}
+                    hatted={state.hats.length > 0 && activeWorm}
                   />
-                  <ellipse cy={radius * 0.22} rx={radius * 0.7} ry={radius * 0.42} fill={paint.belly} />
-                  <path
-                    d={`M ${-radius * 0.16} ${radius * 0.42} Q 0 ${radius * 0.58} ${radius * 0.16} ${radius * 0.42}`}
-                    fill="none"
-                    stroke="#6a3030"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                  />
-                  <ellipse cx={-radius * 0.42} cy={radius * 0.28} rx={radius * 0.16} ry={radius * 0.1} fill={paint.cheek} opacity="0.85" />
-                  <ellipse cx={radius * 0.42} cy={radius * 0.28} rx={radius * 0.16} ry={radius * 0.1} fill={paint.cheek} opacity="0.85" />
-                  <g className={stuck && activeWorm ? undefined : "is-blink"}>
-                    <circle cx={-radius * 0.34} cy={-radius * 0.08} r={radius * eye} fill="#fffdf8" />
-                    <circle cx={radius * 0.34} cy={-radius * 0.08} r={radius * eye} fill="#fffdf8" />
-                    <circle cx={-radius * 0.34 + pupilX * radius * 0.08} cy={-radius * 0.08 + pupilY * radius * 0.08} r={radius * pupil} fill="#24170f" />
-                    <circle cx={radius * 0.34 + pupilX * radius * 0.08} cy={-radius * 0.08 + pupilY * radius * 0.08} r={radius * pupil} fill="#24170f" />
-                    <circle cx={-radius * 0.38} cy={-radius * 0.14} r={radius * 0.035} fill="#fff" />
-                    <circle cx={radius * 0.3} cy={-radius * 0.14} r={radius * 0.035} fill="#fff" />
-                  </g>
-                  {activeWorm ? (
-                    <circle r={radius * 1.28} fill="none" stroke="#fff6df" strokeWidth="2.5" opacity="0.9" />
-                  ) : null}
-                  {worm.carrying ? <ellipse cy={-radius * 1.35} rx="7" ry="9" fill="#fff6ea" /> : null}
-                  {state.hats.length > 0 && activeWorm ? (
-                    <g transform={`translate(${-radius * 0.7} ${-radius * 1.55}) scale(${radius / 18})`}>
-                      <ellipse cx="12" cy="16" rx="14" ry="4" fill="#2f6a34" />
-                      <path d="M4 14c1-8 4-12 8-12s7 4 8 12z" fill="#67b85a" />
-                    </g>
-                  ) : null}
-                  {stuck && activeWorm ? (
-                    <text x={radius * 1.15} y={-radius * 0.8} className="loam-bubble">
-                      …
-                    </text>
-                  ) : null}
-                  {singing && activeWorm ? (
-                    <text x={radius * 1.1} y={-radius * 0.9} className="loam-bubble">
-                      ♪
-                    </text>
-                  ) : null}
                 </g>
+                {stuck && activeWorm ? (
+                  <text x={head.x + radius * 0.9} y={head.y - radius * 0.9} className="loam-bubble">
+                    …
+                  </text>
+                ) : null}
+                {singing && activeWorm ? (
+                  <text x={head.x + radius * 0.85} y={head.y - radius} className="loam-bubble">
+                    ♪
+                  </text>
+                ) : null}
               </g>
             );
           })}

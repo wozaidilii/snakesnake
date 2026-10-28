@@ -58,8 +58,8 @@ function span(length: number): Candidate {
   put(cells, doorX, 5, "X");
   return {
     world: "soil",
-    name: `${length}节身`,
-    hint: `按钮和门隔了 ${length - 1} 格。身体不够长，门就会在你钻进去之前合上。`,
+    name: `${length}只`,
+    hint: `踏板和栅门隔了 ${length - 1} 格。小鸡不够多，栅门会在你走进去之前合上。`,
     rows: rowsOf(cells),
     minMoves: 6 + length,
     weight: 8 + length * 3,
@@ -85,8 +85,8 @@ function rockPush(steps: number): Candidate {
   put(cells, 2, 5, "X");
   return {
     world: "soil",
-    name: `顶${steps}格`,
-    hint: "石头要顶到按钮上。顶的方向错了，你会把自己的路堵住。",
+    name: `推${steps}格`,
+    hint: "木桶要推到踏板上。推的方向错了，你会把自己的路堵住。",
     rows: rowsOf(cells),
     minMoves: 4 + steps,
     weight: 6 + steps * 2,
@@ -111,8 +111,8 @@ function waterAcross(length: number): Candidate {
   put(cells, doorX, 4, "X");
   return {
     world: "runnel",
-    name: length >= 4 ? `长河${length}` : `顺水${length}`,
-    hint: "你踏不进水。把石头推进箭头，它会自己冲到岸上的按钮。",
+    name: length >= 4 ? `长渠${length}` : `顺渠${length}`,
+    hint: "你踏不进水渠。把木桶推进箭头，它会自己冲到岸上的踏板。",
     rows: rowsOf(cells),
     minMoves: 5 + length,
     weight: 7 + length * 2,
@@ -142,7 +142,7 @@ function waterDown(length: number): Candidate {
   return {
     world: "runnel",
     name: `下冲${length}`,
-    hint: "先站到石头上面，再把它推进向下的水里。",
+    hint: "先站到木桶上面，再把它推进向下的水渠。",
     rows: rowsOf(cells),
     minMoves: 4 + length,
     weight: 8 + length * 2,
@@ -168,7 +168,7 @@ function waterTrap(): Candidate {
   return {
     world: "runnel",
     name: "别冲错",
-    hint: "朝上的水会把石头吞进死角。要开的按钮在右边。",
+    hint: "朝上的水渠会把木桶冲进死角。要开的踏板在右边。",
     rows: rowsOf(cells),
     minMoves: 6,
     weight: 16,
@@ -189,8 +189,8 @@ function eggAround(width: number): Candidate {
   put(cells, width - 3, 4, "X");
   return {
     world: "nursery",
-    name: `绕缝${width}`,
-    hint: "衔着蛋踩上裂缝，蛋就碎了。碎了只能撤销。",
+    name: `绕坑${width}`,
+    hint: "衔着蛋踩上泥坑，蛋就碎了。碎了只能撤销。",
     rows: rowsOf(cells),
     minMoves: 8,
     weight: 12 + width,
@@ -217,7 +217,7 @@ function eggDoor(steps: number): Candidate {
   return {
     world: "nursery",
     name: `送蛋${steps}`,
-    hint: "先让石头压住门，再把蛋送进去。带着蛋时不要抄裂缝。",
+    hint: "先让木桶压住栅门，再把蛋送进去。带着蛋时不要抄泥坑。",
     rows: rowsOf(cells),
     minMoves: 8 + steps,
     weight: 14 + steps * 2,
@@ -237,8 +237,8 @@ function daisyHall(length: number): Candidate {
   put(cells, width - 2, 3, "X");
   return {
     world: "nursery",
-    name: `弹${length}格`,
-    hint: "从雏菊上离开时，你会顺着那个方向再滑出几格。滑进裂缝会磕碎蛋；这一关先别往下踩。",
+    name: `滑${length}格`,
+    hint: "从向日葵上离开时，你会顺着那个方向再滑出几格。滑进泥坑会磕碎蛋；这一关先别往下踩。",
     rows: rowsOf(cells),
     minMoves: 3,
     weight: 8 + length,
@@ -259,8 +259,8 @@ function twoEggs(): Candidate {
   put(cells, 4, 2, "!");
   return {
     world: "nursery",
-    name: "两枚蛋",
-    hint: "两个巢都要填。中间的墙和裂缝会逼你换一条路。",
+    name: "两窝蛋",
+    hint: "两个鸡窝都要填。中间的栅栏和泥坑会逼你换一条路。",
     rows: rowsOf(cells),
     minMoves: 12,
     weight: 22,
@@ -283,8 +283,8 @@ function scissors(apples: number, doorX: number): Candidate {
   put(cells, doorX, 5, "X");
   return {
     world: "shear",
-    name: `剪开门${doorX}`,
-    hint: "吃完苹果也不够长。站到剪刀上按空格，剪掉中间那一节，分成两条虫。一条留下压按钮。",
+    name: `剪开栏${doorX}`,
+    hint: "吃完玉米也不够长。站到篱剪上按空格，剪开中间那只小鸡，分成两只母鸡。一只留下压踏板。",
     rows: rowsOf(cells),
     minMoves: 8,
     weight: 18 + doorX,
@@ -306,8 +306,8 @@ function pair(doorX: number): Candidate {
   put(cells, doorX, 4, "X");
   return {
     world: "shear",
-    name: `分头${doorX}`,
-    hint: "现在有两条虫。点另一条，或按 Tab。一条压按钮，另一条去钻门。",
+    name: `分群${doorX}`,
+    hint: "现在有两只母鸡。点另一只，或按 Tab。一只压踏板，另一只去进栅门。",
     rows: rowsOf(cells),
     minMoves: 6,
     weight: 10 + doorX,
@@ -330,7 +330,7 @@ function keyGate(gap: number): Candidate {
   return {
     world: "shear",
     name: `钥匙${gap}`,
-    hint: "先拿到钥匙，再走进锁。锁后面才是金苹果。",
+    hint: "先拿到钥匙，再走进门闩。门闩后面才是金蛋。",
     rows: rowsOf(cells),
     minMoves: 6 + gap,
     weight: 8 + gap * 2,
@@ -353,7 +353,7 @@ function keyBehindRock(steps: number): Candidate {
   return {
     world: "shear",
     name: `搬开${steps}`,
-    hint: "钥匙被石头挡着。先想好要把石头顶到哪里，别把钥匙顶进死角。",
+    hint: "钥匙被木桶挡着。先想好要把木桶推到哪里，别把钥匙推进死角。",
     rows: rowsOf(cells),
     minMoves: 8 + steps,
     weight: 14 + steps * 2,
@@ -377,8 +377,8 @@ function snipThenLock(doorX: number): Candidate {
   put(cells, doorX, 5, "X");
   return {
     world: "shear",
-    name: `深处${doorX}`,
-    hint: "一把锁、一个按钮、一把剪刀。一个人压不住按钮还去开锁。",
+    name: `里院${doorX}`,
+    hint: "一把门闩、一块踏板、一把篱剪。一只母鸡压不住踏板还去开门闩。",
     rows: rowsOf(cells),
     minMoves: 10,
     weight: 24 + doorX,
@@ -406,18 +406,18 @@ function paintDot(candidate: Candidate, char: string, suffix: string, extraHint:
 }
 
 function withHat(candidate: Candidate): Candidate | null {
-  return paintDot(candidate, "H", "·帽", " 旁边有帽子，戴上再离开才算挖干净。", 8, 2);
+  return paintDot(candidate, "H", "·草帽", " 旁边有草帽，戴上再离开才算收干净。", 8, 2);
 }
 
 function withSecondGold(candidate: Candidate): Candidate | null {
-  return paintDot(candidate, "G", "·双果", " 还有一枚金苹果不在主路上，两枚都要拿到，洞口才开。", 10, 3);
+  return paintDot(candidate, "G", "·双蛋", " 还有一枚金蛋不在主路上，两枚都要拿到，鸡舍门才开。", 10, 3);
 }
 
 function withDirt(candidate: Candidate): Candidate | null {
-  return paintDot(candidate, ",", "·土", " 路上埋着土。吃下去会从身后排出来，可能堵住你刚走过的格子。", 7, 1);
+  return paintDot(candidate, ",", "·谷", " 路上埋着谷。啄下去会从队尾排出来，可能堵住你刚走过的格子。", 7, 1);
 }
 
-/** 河往左流，虫子从右边把石头推进来。 */
+/** 水渠往左流，母鸡从右边把木桶推进来。 */
 function waterLeft(length: number): Candidate {
   const width = length + 7;
   const cells = grid(width, 6);
@@ -434,15 +434,15 @@ function waterLeft(length: number): Candidate {
   put(cells, 1, 4, "X");
   return {
     world: "runnel",
-    name: `左流${length}`,
-    hint: "站到石头右边，把它推进向左的水。冲错方向就进不了左边的门。",
+    name: `左渠${length}`,
+    hint: "站到木桶右边，把它推进向左的水渠。冲错方向就进不了左边的栅门。",
     rows: rowsOf(cells),
     minMoves: 5 + length,
     weight: 9 + length * 2,
   };
 }
 
-/** 左右各有一枚金苹果，中间才能下到洞口。一边可能挡着石头。 */
+/** 左右各有一枚金蛋，中间才能走到鸡舍门。一边可能挡着木桶。 */
 function twoGolds(left: number, right: number): Candidate {
   const width = left + right + 3;
   const cells = grid(width, 5);
@@ -459,7 +459,7 @@ function twoGolds(left: number, right: number): Candidate {
   return {
     world: "soil",
     name: `两边${left}+${right}`,
-    hint: "左右各一枚金苹果。只拿一枚，洞口不会开。石头和土会挡在某一边。",
+    hint: "左右各一枚金蛋。只拿一枚，鸡舍门不会开。木桶和谷会挡在某一边。",
     rows: rowsOf(cells),
     minMoves: left + right,
     weight: 12 + left + right,
@@ -480,10 +480,10 @@ function lessons(): Candidate[] {
     weight: 1,
   });
   return [
-    plain("第一口", "点一格，或按住方向键。金苹果会打开洞口。", ["#######", "#0...G#", "#.....#", "#...X.#", "#######"]),
-    plain("吞下去", "吃掉的土会从尾巴后面排出来，土不会变少。", ["########", "#0,,,G.#", "#......#", "#.....X#", "########"]),
-    plain("红苹果", "红苹果让你长长一节。变长以后，尾巴不会立刻跟上。", ["########", "#0.A...#", "#......#", "#..G...#", "#..X...#", "########"]),
-    plain("让一让", "石头可以顶开，一次一块，也不能顶进墙里。", ["#######", "#0R..G#", "#.....#", "#...X.#", "#######"]),
+    plain("进院", "点一格，或按住方向键。金蛋会打开鸡舍门。", ["#######", "#0...G#", "#.....#", "#...X.#", "#######"]),
+    plain("啄谷", "啄掉的谷会从队尾排出来，谷不会变少。", ["########", "#0,,,G.#", "#......#", "#.....X#", "########"]),
+    plain("吃玉米", "玉米会叫来一只黄小鸡。小鸡多了以后，队尾不会立刻跟上。", ["########", "#0.A...#", "#......#", "#..G...#", "#..X...#", "########"]),
+    plain("让开桶", "木桶可以推开，一次一只，也不能推进栅栏里。", ["#######", "#0R..G#", "#.....#", "#...X.#", "#######"]),
   ];
 }
 
@@ -526,12 +526,47 @@ function scoreOf(moves: number, weight: number): number {
   return moves + weight;
 }
 
-function signature(rows: string[]): string {
-  const kinds = [...new Set(rows.join("").replace(/[#.]/g, ""))].sort().join("");
-  return `${kinds}:${rows.length}x${rows[0]?.length ?? 0}`;
+type Kept = Level & { moves: number; nodes: number; score: number };
+
+/** 同一条走廊拉长几次，玩法并没有变。 */
+function familyOf(name: string): string {
+  const base = name.split("·")[0] ?? name;
+  if (base === "进院" || base === "啄谷" || base === "吃玉米" || base === "让开桶") return base;
+  if (base.startsWith("两边")) return "两边";
+  if (base.startsWith("顺渠") || base.startsWith("长渠")) return "右渠";
+  if (base.startsWith("左渠")) return "左渠";
+  if (base.startsWith("下冲")) return "下冲";
+  if (base.startsWith("别冲错")) return "别冲错";
+  if (base.startsWith("推")) return "推";
+  if (base.startsWith("滑")) return "滑";
+  if (base.startsWith("绕坑")) return "绕坑";
+  if (base.startsWith("送蛋")) return "送蛋";
+  if (base.startsWith("剪开栏")) return "剪开栏";
+  if (base.startsWith("分群")) return "分群";
+  if (base.startsWith("钥匙")) return "钥匙";
+  if (base.startsWith("搬开")) return "搬开";
+  if (base.startsWith("里院")) return "里院";
+  if (base.endsWith("只")) return "只";
+  return base.replace(/\d+/g, "");
 }
 
-type Kept = Level & { moves: number; nodes: number; score: number };
+function twistOf(name: string): string {
+  const mark = name.indexOf("·");
+  return mark < 0 ? "" : name.slice(mark + 1);
+}
+
+/** 拉长走廊不会变成新题。只有格子关系会变的题，才再留一道难的。 */
+const SCALING = new Set(["只", "剪开栏", "分群", "里院", "两边", "送蛋", "搬开"]);
+
+function harder(a: Kept, b: Kept): Kept {
+  if (a.nodes !== b.nodes) return a.nodes > b.nodes ? a : b;
+  if (a.moves !== b.moves) return a.moves > b.moves ? a : b;
+  return a.score >= b.score ? a : b;
+}
+
+function isPuzzle(level: Kept, introMoves: number): boolean {
+  return level.moves >= Math.max(10, introMoves + 3) && level.nodes >= 80;
+}
 
 function evaluate(list: Candidate[]): { kept: Kept[]; rejected: string[] } {
   const kept: Kept[] = [];
@@ -578,44 +613,99 @@ function evaluate(list: Candidate[]): { kept: Kept[]; rejected: string[] } {
   return { kept, rejected };
 }
 
-function pickDiverse(bin: Kept[], limit: number): Kept[] {
-  const sorted = [...bin].sort((a, b) => a.score - b.score || a.moves - b.moves);
-  const picked: Kept[] = [];
-  const seen = new Set<string>();
-  for (const level of sorted) {
-    const key = signature(level.rows);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    picked.push(level);
-    if (picked.length === limit) return picked;
+const TEACHING = ["进院", "啄谷", "吃玉米", "让开桶"];
+
+function byFamily(levels: Kept[]): Map<string, Kept[]> {
+  const groups = new Map<string, Kept[]>();
+  for (const level of levels) {
+    const key = familyOf(level.name);
+    const list = groups.get(key) ?? [];
+    list.push(level);
+    groups.set(key, list);
   }
-  for (const level of sorted) {
-    if (picked.length === limit) break;
-    if (!picked.includes(level)) picked.push(level);
-  }
-  return picked;
+  return groups;
 }
 
-const TEACHING = ["第一口", "吞下去", "红苹果", "让一让"];
+/** 每种玩法先走一道入门，再留一道分叉最多的题。谷、草帽、双蛋不各做一遍。 */
+function selectCampaign(kept: Kept[]): { teaching: Kept[]; chapters: Kept[][] } {
+  const teaching: Kept[] = [];
+  for (const name of TEACHING) {
+    const level = kept.find((item) => item.name === name);
+    if (level) teaching.push(level);
+  }
+  const groups = byFamily(kept.filter((level) => !TEACHING.includes(level.name)));
+  const chapters: { introScore: number; levels: Kept[] }[] = [];
+  for (const [family, levels] of groups) {
+    const plains = levels.filter((level) => twistOf(level.name) === "");
+    plains.sort((a, b) => a.score - b.score || a.moves - b.moves || a.nodes - b.nodes);
+    const intro = plains[0];
+    const chapter: Kept[] = [];
+    if (intro) chapter.push(intro);
+    const introMoves = intro?.moves ?? 0;
+    if (intro && SCALING.has(family)) {
+      const hardest = plains.reduce(harder);
+      if (hardest !== intro && isPuzzle(hardest, introMoves)) chapter.push(hardest);
+    }
+    let bestTwist: Kept | null = null;
+    for (const level of levels) {
+      if (!twistOf(level.name) || !isPuzzle(level, introMoves)) continue;
+      if (!bestTwist || harder(level, bestTwist) === level) bestTwist = level;
+    }
+    if (bestTwist) chapter.push(bestTwist);
+    if (chapter.length === 0) continue;
+    chapters.push({ introScore: intro?.score ?? chapter[0]?.score ?? 0, levels: chapter });
+  }
+  chapters.sort((a, b) => a.introScore - b.introScore);
+  const glued: Kept[][] = [];
+  let pending: Kept[] = [];
+  for (const chapter of chapters) {
+    pending.push(...chapter.levels);
+    const hasPuzzle = chapter.levels.some((level) => isPuzzle(level, 0));
+    if (hasPuzzle) {
+      glued.push(pending);
+      pending = [];
+    }
+  }
+  if (pending.length > 0) {
+    const last = glued.at(-1);
+    if (last) last.push(...pending);
+    else glued.push(pending);
+  }
+  return { teaching, chapters: glued };
+}
+
+function tierSizes(count: number): number[] {
+  const sizes = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let cursor = 0;
+  while (cursor < count && cursor < sizes.length) {
+    sizes[cursor] = 1;
+    cursor++;
+  }
+  const later = [8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 2, 1, 0];
+  let index = 0;
+  while (cursor < count) {
+    const slot = later[index % later.length] ?? 8;
+    sizes[slot] = (sizes[slot] ?? 0) + 1;
+    cursor++;
+    index++;
+  }
+  return sizes;
+}
 
 export function bakeGenerated(): Level[] {
   const { kept, rejected } = evaluate(candidates());
-  const sorted = [...kept].sort((a, b) => a.score - b.score || a.moves - b.moves);
-  const bins: Kept[][] = Array.from({ length: 10 }, () => []);
-  sorted.forEach((level, index) => {
-    const tier = Math.min(9, Math.floor((index * 10) / Math.max(sorted.length, 1)));
-    bins[tier]?.push(level);
-  });
+  const { teaching, chapters } = selectCampaign(kept);
+  const bins: Kept[][] = [teaching];
+  const sizes = tierSizes(chapters.length);
+  let cursor = 0;
+  for (const size of sizes) {
+    const group: Kept[] = [];
+    for (const chapter of chapters.slice(cursor, cursor + size)) group.push(...chapter);
+    bins.push(group);
+    cursor += size;
+  }
   const chosen: Level[] = [];
-  bins.forEach((bin, tierIndex) => {
-    let group = pickDiverse(bin, 20);
-    if (tierIndex === 0) {
-      const taught = TEACHING.map((name) => sorted.find((level) => level.name === name)).filter(
-        (level): level is Kept => !!level,
-      );
-      const rest = group.filter((level) => !TEACHING.includes(level.name));
-      group = [...taught, ...rest].slice(0, 20);
-    }
+  bins.forEach((group, tierIndex) => {
     const rank = String(tierIndex + 1);
     group.forEach((level, index) => {
       chosen.push({
@@ -627,13 +717,10 @@ export function bakeGenerated(): Level[] {
         rank,
       });
     });
-    const scores = group.map((level) => level.score);
-    const low = scores[0] ?? 0;
-    const high = scores[scores.length - 1] ?? 0;
-    console.log(`第${rank}档 ${group.length}关 分数 ${low}–${high}`);
+    const names = group.map((level) => `${level.name}(${level.moves}步/${level.nodes})`).join("，");
+    console.log(`第${rank}档 ${group.length}关 ${names}`);
   });
-  const short = chosen.length < 200 ? `，不足 200（可用题 ${kept.length}）` : "";
-  console.log(`保留 ${chosen.length} 关${short}，淘汰 ${rejected.length} 关`);
+  console.log(`保留 ${chosen.length} 关，候选 ${kept.length}，淘汰 ${rejected.length}`);
   const stuck = rejected.filter((line) => line.includes("stuck") || line.includes("budget") || line.includes("解析")).length;
   console.log(`其中走不通或超时 ${stuck}`);
   return chosen;
