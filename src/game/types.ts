@@ -14,6 +14,7 @@ export type Fixture =
   | { kind: "daisy" }
   | { kind: "scissors" }
   | { kind: "roost"; used: boolean }
+  | { kind: "bridge"; collapsed: boolean }
   | { kind: "crack" }
   | { kind: "nest"; filled: boolean }
   | { kind: "lock" };
@@ -69,6 +70,8 @@ export type Sound =
   | "gold"
   | "cut"
   | "fledge"
+  | "bell"
+  | "bridge"
   | "egg"
   | "crack"
   | "win"
@@ -83,9 +86,10 @@ export type StepResult = {
   state: GameState;
   sound: Sound;
   motion?: { id: string; path: Point[] }[];
+  ripples?: Point[];
 };
 
-export type WorldId = "soil" | "runnel" | "nursery" | "shear";
+export type WorldId = "soil" | "runnel" | "nursery" | "shear" | "orchard" | "pond";
 
 export type Level = {
   gentle?: boolean;
@@ -94,7 +98,7 @@ export type Level = {
   challenge?: boolean;
   difficulty?: 1 | 2 | 3 | 4 | 5;
   tutorial?: boolean;
-  requires?: ("fledge" | "push" | "grow" | "water")[];
+  requires?: ("fledge" | "push" | "grow" | "water" | "bell" | "bridge")[];
   id: string;
   world: WorldId;
   name: string;

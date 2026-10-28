@@ -1,12 +1,12 @@
-import { applyFledge, applyMove, applySnip, DIRS, fledgeCandidates } from "./engine";
-import type { Dir, GameState, StepResult } from "./types";
+import { add, at, applyFledge, applyMove, applySnip, DIRS, fledgeCandidates } from "./engine";
+import type { Dir, GameState, Level, StepResult } from "./types";
 
 /** Static geometry is fixed within a search; encode only mutable facts. */
 export function hashState(state: GameState): string {
   let hash = `${state.levelId}|${state.keys}|${+state.flips.red}${+state.flips.blue}|${state.lost ?? ""}|${+state.won}|${[...state.hats].sort().join(",")}|`;
   state.cells.forEach((cell, i) => {
     const f = cell.fixture;
-    const mutable = `${cell.terrain === "dirt" ? "," : ""}${cell.pickup?.kind[0] ?? ""}${f?.kind === "nest" ? f.filled ? "n" : "N" : f?.kind === "roost" ? f.used ? "s" : "S" : f?.kind === "lock" ? "L" : ""}`;
+    const mutable = `${cell.terrain === "dirt" ? "," : ""}${cell.pickup?.kind[0] ?? ""}${f?.kind === "nest" ? f.filled ? "n" : "N" : f?.kind === "roost" ? f.used ? "s" : "S" : f?.kind === "bridge" ? f.collapsed ? "~" : "=" : f?.kind === "lock" ? "L" : ""}`;
     if (mutable) hash += `${i.toString(36)}:${mutable};`;
   });
   return hash + state.worms.map((worm) => `${state.gentle ? worm.id : ""}:${+worm.carrying}:${worm.segments.map((p) => (p.y * state.width + p.x).toString(36)).join(".")}`).sort().join("|");
@@ -19,7 +19,7 @@ export function replayAction(state: GameState, action: Action): StepResult | nul
     : action.dir === "snip" ? applySnip(state, index) : applyMove(state, index, action.dir);
 }
 export type SolveResult = { ok: boolean; reason: "solved" | "stuck" | "budget"; nodes: number; moves: number; path: Action[] };
-export type SolveOptions = { needHat?: boolean; maxNodes?: number; maxMoves?: number; forbid?: "fledge" | "push" | "grow" | "water" };
+export type SolveOptions = { needHat?: boolean; maxNodes?: number; maxMoves?: number; forbid?: NonNullable<Level["requires"]>[number] };
 export function solve(start: GameState, options: SolveOptions = {}): SolveResult {
   const maxNodes = options.maxNodes ?? 250_000;
   const maxMoves = options.maxMoves ?? 150;
@@ -47,6 +47,9 @@ export function solve(start: GameState, options: SolveOptions = {}): SolveResult
     for (let wi = 0; wi < state.worms.length; wi++) {
       const wormId = state.worms[wi]!.id;
       for (const dir of DIRS) {
+        const dest = at(state, add(state.worms[wi]!.segments[0]!, dir));
+        if (options.forbid === "bridge" && dest?.fixture?.kind === "bridge") continue;
+        if (options.forbid === "bell" && dest?.fixture?.kind === "lever") continue;
         const step = applyMove(state, wi, dir);
         if (!step || step.state.lost) continue;
         if (options.forbid === "push" && step.motion?.length) continue;

@@ -78,6 +78,7 @@ export function parseLevel(level: Level): GameState {
       else if (char === "X") cell.fixture = { kind: "exit" };
       else if (char === "*") cell.fixture = { kind: "daisy" };
       else if (char === "S") cell.fixture = level.gentle ? { kind: "roost", used: false } : { kind: "scissors" };
+      else if (char === "~") cell.fixture = { kind: "bridge", collapsed: false };
       else if (char === "!") cell.fixture = { kind: "crack" };
       else if (char === "N") cell.fixture = { kind: "nest", filled: false };
       else if (char === "L") cell.fixture = { kind: "lock" };

@@ -3,9 +3,16 @@ import { useId, type CSSProperties } from "react";
 const SPRITES = { hen: 0, chick: 1, berries: 2, egg: 3, nest: 4, filledNest: 5,
   barrel: 6, stone: 7, gate: 8, openGate: 9, plate: 10, pressedPlate: 11,
   corn: 12, flower: 13, sign: 14, grass: 15 } as const;
-export type SpriteName = keyof typeof SPRITES;
+const EXTRA = {
+  bell: "20 20 315 330", bellOn: "340 20 310 330", bridge: "650 100 320 260", ripple: "980 120 280 240",
+  bellGate: "20 390 310 280", openBellGate: "335 390 325 280", henHappy: "665 360 320 310", chickHappy: "1025 410 215 260",
+  wateringCan: "20 670 310 285", gardenBadge: "335 700 300 250", eggBasket: "650 675 310 295", sailboat: "980 680 285 280",
+  chimeBadge: "80 950 190 300", lotusLantern: "330 960 310 285", sparkles: "660 990 270 240", feather: "980 990 280 240",
+} as const;
+export type SpriteName = keyof typeof SPRITES | keyof typeof EXTRA;
 // Optical crop bounds avoid neighboring pixels from the generated atlas.
 const CROPS: Record<SpriteName, string> = {
+  ...EXTRA,
   hen: "20 30 340 350", chick: "380 130 240 245", berries: "665 150 290 230", egg: "985 165 245 220",
   nest: "20 440 315 225", filledNest: "345 440 310 225", barrel: "665 410 285 255", stone: "970 450 280 220",
   gate: "20 685 320 250", openGate: "345 685 330 250", plate: "680 725 280 195", pressedPlate: "965 735 285 190",
@@ -18,7 +25,7 @@ export function Sprite({ name, className = "", style }: { name: SpriteName; clas
   return <span aria-hidden="true" className={`sprite sprite-${name} ${className}`} style={style}>
     <svg viewBox={CROPS[name]} width="100%" height="100%" focusable="false">
       <defs><clipPath id={clipId}><rect x={x} y={y} width={width} height={height} /></clipPath></defs>
-      <image href="/art/farm-atlas-v2.png" width="1280" height="1280" clipPath={`url(#${clipId})`} />
+      <image href={name in EXTRA ? "/art/farm-expansion-v3.png" : "/art/farm-atlas-v2.png"} width="1280" height="1280" clipPath={`url(#${clipId})`} />
     </svg>
   </span>;
 }

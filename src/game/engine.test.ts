@@ -12,6 +12,8 @@ import {
   doorIsOpen,
 } from "./engine";
 import { LEVELS } from "./levels";
+import { chapterProgress, continueJourney, recommendedLevel } from "./progression";
+import { emptySave } from "./save";
 import { parseLevel } from "./parse";
 import { hashState, replayAction, solve } from "./solver";
 import type { Cell, GameState, Point, Worm } from "./types";
@@ -401,4 +403,94 @@ test("planning puzzles require repositioning and a genuine gate handoff", () => 
   let previous = "w0", switches = 0;
   for (const action of handoff) { if (previous !== action.wormId) switches++; previous = action.wormId; }
   assert.ok(switches >= 4, "two gates must require handing control back and forth");
+});
+
+test("lily pads wait for the entire flock, restore on undo and affect solver identity", () => {
+  const initial = arena(9, 4);
+  initial.gentle = true;
+  initial.worms = [worm([{x:3,y:1},{x:2,y:1},{x:1,y:1}])];
+  put(initial, {x:3,y:1}, {fixture:{kind:"bridge",collapsed:false}});
+  const snapshot = structuredClone(initial);
+  let state = initial;
+  for (let n=0;n<3;n++) {
+    const step=applyMove(state,0,"right")!;
+    assert.ok(step);
+    assert.deepEqual(step.state.cells[12]!.fixture,{kind:"bridge",collapsed:n===2});
+    assert.equal(step.state.cells[12]!.terrain,n===2?"water":"floor");
+    assert.equal(step.state.lost,null);
+    assert.equal(step.state.worms[0]!.segments.length,3);
+    assert.equal(step.ripples?.length,n===2?1:0);
+    state=step.state;
+  }
+  assert.deepEqual(initial,snapshot);
+  const comparison=structuredClone(state); comparison.cells[12]!.fixture={kind:"bridge",collapsed:false}; comparison.cells[12]!.terrain="floor";
+  assert.notEqual(hashState(state),hashState(comparison));
+  assert.deepEqual(applyMove(initial,0,"right"),applyMove(snapshot,0,"right"));
+});
+
+test("a crate and a hen can hand off the same lily pad without sinking it", () => {
+  const initial=arena(8,4); initial.gentle=true;
+  initial.worms=[worm([{x:1,y:1}])];
+  put(initial,{x:2,y:1},{fixture:{kind:"bridge",collapsed:false},pickup:{kind:"rock",id:"crate"}});
+  const handoff=applyMove(initial,0,"right")!;
+  assert.equal(handoff.state.cells[10]!.terrain,"floor");
+  assert.deepEqual(handoff.ripples,[]);
+  const leave=applyMove(handoff.state,0,"down")!;
+  assert.equal(leave.state.cells[10]!.terrain,"water");
+  assert.equal(applyMove(leave.state,0,"up"),null);
+  assert.equal(initial.cells[10]!.pickup?.kind,"rock");
+});
+
+test("only hen heads ring bells, and bell gates are independent from pressure gates", () => {
+  const initial=arena(8,4); initial.gentle=true;
+  initial.worms=[worm([{x:2,y:1},{x:1,y:1}])];
+  put(initial,{x:3,y:1},{fixture:{kind:"lever",color:"red"}});
+  const rung=applyMove(initial,0,"right")!;
+  assert.equal(rung.state.flips.red,true);
+  assert.equal(rung.sound,"bell");
+  const chick=applyMove(rung.state,0,"right")!;
+  assert.equal(chick.state.flips.red,true);
+  assert.equal(doorIsOpen(chick.state,{color:"red"}),false);
+  assert.equal(doorIsOpen(chick.state,{color:"red",gate:"flip"}),true);
+  const second=applyMove(chick.state,0,"left")!;
+  assert.equal(second.state.flips.red,false);
+  assert.equal(rung.state.flips.red,true);
+});
+
+test("chapter keepsakes and recommended routes do not demand optional challenges or optimal play", () => {
+  const core=LEVELS.filter(l=>l.world==="orchard"&&!l.challenge);
+  const save={...emptySave,cleared:core.map(l=>l.id),best:core.map(l=>({id:l.id,moves:100}))};
+  const progress=chapterProgress("orchard",save);
+  assert.equal(progress.earned,true);
+  assert.equal(progress.perfect,false);
+  assert.equal(progress.mastered,0);
+  assert.equal(progress.challenges,0);
+  assert.equal(continueJourney(core.at(-1)!.id,save),"flock-35");
+  assert.equal(recommendedLevel(save,"orchard"),"flock-34");
+  assert.equal(recommendedLevel(emptySave),"flock-01");
+  const all={...emptySave,cleared:LEVELS.map(l=>l.id),best:LEVELS.map(l=>({id:l.id,moves:l.par!}))};
+  assert.equal(recommendedLevel(all),null);
+  assert.equal(continueJourney("flock-40",all),null);
+  assert.equal(chapterProgress("pond",all).perfect,true);
+});
+
+test("the authored sequence teaches each rule before its combinations", () => {
+  const firstEgg=LEVELS.find(l=>l.rows.join("").includes("E"))!;
+  const firstFledge=LEVELS.find(l=>l.rows.join("").includes("S"))!;
+  assert.equal(firstEgg.id,"flock-03");
+  assert.equal(firstFledge.id,"flock-04");
+  for(const mechanic of ["grow","push","fledge","water","bell","bridge"] as const) {
+    assert.equal(LEVELS.find(l=>l.requires?.includes(mechanic))?.tutorial,true,mechanic);
+  }
+  assert.equal(new Set(LEVELS.map(l=>l.id)).size,LEVELS.length);
+});
+
+test("bell parity requires three rings and the pond finale requires a helper expedition", () => {
+  let state=parseLevel(LEVELS.find(l=>l.id==="flock-30")!); let rings=0;
+  for(const action of solve(state).path) { const step=replayAction(state,action)!; if(step.state.flips.red!==state.flips.red) rings++; state=step.state; }
+  assert.equal(rings,3);
+  state=parseLevel(LEVELS.find(l=>l.id==="flock-40")!); let helperCollects=false;
+  for(const action of solve(state).path) { const step=replayAction(state,action)!; if(action.wormId!=="w0" && step.state.cells.filter(c=>c.pickup?.kind==="gold").length<state.cells.filter(c=>c.pickup?.kind==="gold").length)helperCollects=true; state=step.state; }
+  assert.equal(helperCollects,true);
+  assert.equal(state.won,true);
 });

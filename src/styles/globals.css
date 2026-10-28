@@ -395,3 +395,77 @@ kbd { font: 8px system-ui; border: 1px solid #dcd3bf; border-radius: 3px; backgr
  .directions { grid-column: 1 / -1; justify-self: center; }
  .dock-divider { display: none; }
 }
+/* Orchard and moonlit pond expansion. Motion stays short and never gates input. */
+.journal-button .sprite { width: 28px; height: 28px; }
+.journal-link, .chapter-reward { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; margin-top: 16px; padding: 10px; border: 1px dashed #c6c7a2; border-radius: 8px; background: #efeedb; font-size: 11px; color: #64724c; }
+.journal-link > .sprite, .chapter-reward > .sprite { width: 42px; height: 42px; }
+.journal-link small, .chapter-reward small { display: block; color: #8d846a; margin-top: 5px; font-size: 9px; }
+.recommended-route { display: flex; gap: 14px; align-items: center; width: 100%; text-align: left; border-radius: 9px; border: 1px solid #b7c5a2; background: #e8eedb; padding: 12px 16px; margin-top: 15px; color: #4d6747; }
+.recommended-route .sprite { width: 44px; height: 44px; }
+.recommended-route span:not(.sprite) { flex: 1; font-size: 14px; }
+.recommended-route small { display: block; margin-bottom: 5px; font-size: 10px; color: #828c6c; }
+.recommended-route > svg { width: 20px; height: 20px; }
+.souvenir-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
+.souvenir { display: flex; flex-direction: column; align-items: center; padding: 19px 12px 14px; border: 1px dashed #d2c8ac; border-radius: 12px; background: #f2eddf; text-align: center; }
+.souvenir > .sprite { width: 84px; height: 84px; filter: saturate(.25); opacity: .55; margin-bottom: 12px; }
+.souvenir.earned { background: #f8f0d7; border: 1px solid #cbb17b; }
+.souvenir.earned > .sprite { filter: none; opacity: 1; }
+.souvenir > small { color: #8e8e6b; font-size: 9px; }
+.souvenir h3 { font-size: 13px; font-weight: 500; margin: 9px 0 0; }
+.souvenir p { font-size: 10px; margin: 8px 0; }
+.souvenir p.souvenir-detail { font-size: 9px; color: #8b826d; }
+.souvenir-meter { width: 100%; height: 4px; border-radius: 3px; overflow: hidden; background: #ddd8c4; }
+.souvenir-meter span { display: block; height: 100%; background: #8b9d6e; transition: width .3s; }
+.souvenir button { border: 1px solid #d0c8a9; padding: 10px; min-height: 44px; border-radius: 6px; font-size: 10px; margin-top: auto; color: #5b7357; background: #faf6e6; width: 100%; }
+.optional-quest { display: block; margin-top: 14px; font-size: 11px; color: #8a7852; text-align: left; padding: 8px 0; min-height: 44px; }
+.tile.lever .tile-fixture { width: 82%; height: 96%; bottom: 3%; }
+.bell-marker { position: absolute; bottom: -2px; right: -1px; z-index: 4; border-radius: 3px; padding: 0 2px; font: 8px/1.5 system-ui; background: #be8653; color: #fff4ce; white-space: nowrap; }
+.bell-marker.blue { background: #607d92; }
+.tile.bridge { background: #85b7a7; box-shadow: inset 0 0 12px #436d7120; }
+.tile.bridge .tile-fixture { width: 100%; height: 100%; }
+.tile.bridge:not(.water) .tile-fixture { animation: pad-breathe 4s ease-in-out infinite; }
+.tile.lever .sprite-bellOn { animation: chime-settle 450ms ease-out; transform-origin: 50% 20%; }
+.biome-orchard .tile.floor { background-color: #b4b769; }
+.biome-pond .tile.floor { background-color: #a0b78b; }
+.biome-pond { background-color: #9eaf80; }
+.biome-pond .garden-path { background-color: #b0bba3; }
+.happy-particles { position: absolute; pointer-events: none; z-index: 99; width: 0; height: 0; }
+.happy-particles .sprite { position: absolute; width: 18px; height: 18px; animation: feather-puff 720ms cubic-bezier(.2,.7,.4,1) forwards; }
+.water-ring { position: absolute; z-index: 4; pointer-events: none; border: 2px solid #e7fff4; border-radius: 50%; animation: pond-ripple 650ms ease-out forwards; }
+.is-celebrating .bird > .sprite:first-of-type { animation: home-hop 650ms cubic-bezier(.3,.8,.4,1) both; }
+.is-celebrating .bird.baby > .sprite:first-of-type { animation-delay: 100ms; }
+.result-art .sprite-henHappy { width: 115px; height: 115px; }
+.result-art .sprite-chickHappy { width: 72px; height: 72px; }
+.result-art .sprite-henHappy, .result-art .sprite-chickHappy { animation: greeting 500ms ease-out both; }
+.result-art .sprite-chickHappy { animation-delay: 120ms; }
+@keyframes pad-breathe { 50% { translate: 0 -2%; rotate: -1deg; } }
+@keyframes chime-settle { 20% { rotate: 7deg; } 50% { rotate: -5deg; } 75% { rotate: 2deg; } }
+@keyframes pond-ripple { from { scale: .4; opacity: .8; } to { scale: 1.5; opacity: 0; } }
+@keyframes feather-puff { from { opacity: 0; transform: translate(-9px,-9px) scale(.3); } 20% { opacity: .9; } to { opacity: 0; transform: translate(var(--particle-x), var(--particle-y)) rotate(var(--particle-angle)) scale(.7); } }
+@keyframes home-hop { 0%,100% { translate: 0 0; scale: 1; } 30% { translate: 0 -20%; scale: .96 1.05; } 60% { translate: 0 0; scale: 1.06 .94; } 80% { translate: 0 -7%; scale: 1; } }
+@keyframes greeting { from { translate: 0 10px; scale: .85; opacity: .4; } 65% { translate: 0 -5px; scale: 1.03; opacity: 1; } to { translate: 0 0; scale: 1; opacity: 1; } }
+@media (min-width: 991px) {
+ .chapter-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+ .chapter-button { flex-direction: column; justify-content: center; gap: 4px; padding: 7px 3px; text-align: center; position: relative; }
+ .chapter-button > .sprite { width: 29px; height: 29px; }
+ .chapter-button strong { font-size: 11px; }
+ .chapter-button small { font-size: 7px; }
+ .chapter-chevron { position: absolute; right: 5px; top: 4px; font-size: 11px; }
+ .chapter-lessons ol { max-height: 285px; overflow-y: auto; scrollbar-width: thin; }
+ .sidebar-note { display: none; }
+}
+@media (max-width: 680px) {
+ .souvenir-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+ .souvenir { padding: 14px 7px 10px; }
+ .souvenir > .sprite { width: 68px; height: 68px; }
+ .souvenir h3 { font-size: 12px; }
+ .souvenir p.souvenir-detail { font-size: 8px; }
+ .journal-button { min-width: 34px; width: 34px; padding: 3px; }
+ .header-actions { gap: 3px; }
+ .bell-marker { font-size: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .happy-particles, .water-ring { display: none; }
+}
+.farm-dialog { margin: auto; inset: 0; }
+body:has(dialog[open]) { overflow: hidden; }

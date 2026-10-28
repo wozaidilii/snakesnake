@@ -36,6 +36,8 @@ export function playSound(sound: Sound): void {
   if (!ctx) return;
   const now = ctx.currentTime;
   if (sound === "move") tone(180, now, 0.06, "sine", 0.03);
+  else if (sound === "bell") [660, 990, 1320].forEach((freq, i) => tone(freq, now + i * .045, .32, "sine", .024 / (i + 1)));
+  else if (sound === "bridge") { tone(310, now, .13, "sine", .025); tone(190, now + .07, .18, "sine", .02); }
   else if (sound === "eat") tone(140, now, 0.09, "triangle", 0.04);
   else if (sound === "push") tone(90, now, 0.1, "square", 0.02);
   else if (sound === "fledge") {

@@ -33,6 +33,8 @@ const SOUND_RANK: Record<Sound, number> = {
   gold: 70,
   cut: 80,
   fledge: 80,
+  bell: 42,
+  bridge: 31,
   crack: 90,
   win: 100,
 };
@@ -139,6 +141,7 @@ function canLandRock(state: GameState, p: Point, ignore: Point | null): boolean 
   return (
     fixture === undefined ||
     fixture === "button" ||
+    fixture === "bridge" ||
     fixture === "crack" ||
     fixture === "oneway"
   );
@@ -425,7 +428,7 @@ export function applyMove(
   const landedFixture = landed ? at(next, landed)?.fixture : undefined;
   if (landedFixture?.kind === "lever") {
     next.flips[landedFixture.color] = !next.flips[landedFixture.color];
-    sound = louder(sound, "lock");
+    sound = louder(sound, state.gentle ? "bell" : "lock");
   }
 
   if (leftDaisy && !next.lost) {
@@ -435,8 +438,22 @@ export function applyMove(
 
   if (rockTouchesWorm(next)) return null;
 
+  // A pad rests only after the LAST bird or crate leaves. No occupant is dropped.
+  const ripples: Point[] = [];
+  state.cells.forEach((old, i) => {
+    if (old.fixture?.kind !== "bridge" || old.fixture.collapsed) return;
+    const point = { x: i % state.width, y: Math.floor(i / state.width) };
+    if (!(old.pickup?.kind === "rock" || findSeg(state, point))) return;
+    const current = next.cells[i]!;
+    if (current.pickup?.kind === "rock" || findSeg(next, point)) return;
+    current.fixture = { kind: "bridge", collapsed: true };
+    current.terrain = "water";
+    current.flow = undefined;
+    ripples.push(point);
+  });
+  if (ripples.length) sound = louder(sound, "bridge");
   const cut = resolveCuts(next);
-  return { ...finish(next, sound, cut), motion };
+  return { ...finish(next, sound, cut), motion, ripples };
 }
 
 /** Only chicks on an unused growing patch can leave the flock. No bird is lost. */
