@@ -1,16 +1,14 @@
 import { writeFileSync } from "node:fs";
 
-import { BAKED } from "./baked-levels";
+import { CAMPAIGN } from "./campaign";
 import { parseLevel } from "./parse";
 import { solve } from "./solver";
-import { assemble } from "./twists";
 
-const levels = assemble(BAKED);
+const levels = CAMPAIGN;
 const pars: Record<string, number> = {};
 for (const level of levels) {
   const result = solve(parseLevel(level), {
-    needHat: level.rows.some((row) => row.includes("H")),
-    maxNodes: 30_000,
+    maxNodes: 160_000,
     maxMoves: 85,
   });
   if (!result.ok) {
@@ -19,7 +17,9 @@ for (const level of levels) {
     continue;
   }
   pars[level.id] = result.moves;
+  console.log(`${level.id} ${level.name}: ${result.moves} 步 / ${result.nodes} 状态`);
 }
+if (process.exitCode) process.exit(1);
 const body = Object.entries(pars)
   .map(([id, moves]) => `  ${JSON.stringify(id)}: ${moves},`)
   .join("\n");

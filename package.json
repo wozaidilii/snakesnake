@@ -13,7 +13,8 @@
     "postinstall": "prisma generate",
     "preview": "next build && next start",
     "start": "next start",
-    "gen:levels": "tsx src/game/generate.ts",
+    "gen:legacy": "tsx src/game/generate.ts",
+    "validate:levels": "tsx src/game/validate-campaign.ts",
     "gen:pars": "tsx src/game/write-pars.ts",
     "test": "tsx --test src/game/engine.test.ts",
     "typecheck": "tsc --noEmit"

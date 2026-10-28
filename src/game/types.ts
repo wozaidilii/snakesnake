@@ -43,6 +43,8 @@ export type Worm = {
 };
 
 export type GameState = {
+  /** Farm campaign gates wait for the entire flock to pass safely. */
+  gentle?: boolean;
   levelId: string;
   width: number;
   height: number;
@@ -83,6 +85,11 @@ export type StepResult = {
 export type WorldId = "soil" | "runnel" | "nursery" | "shear";
 
 export type Level = {
+  gentle?: boolean;
+  hints?: string[];
+  insight?: string;
+  challenge?: boolean;
+  difficulty?: 1 | 2 | 3;
   id: string;
   world: WorldId;
   name: string;

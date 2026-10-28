@@ -1,417 +1,228 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-import { playSound, sing } from "~/game/audio";
-import { activeIndex, applyMove, applySnip, canSnip } from "~/game/engine";
-import { WORLDS, getLevel, nextLevelId } from "~/game/levels";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { playSound } from "~/game/audio";
+import { activeIndex, applyMove, goalsReady } from "~/game/engine";
+import { LEVELS, WORLDS, getLevel, levelsIn, nextLevelId } from "~/game/levels";
 import { parseLevel } from "~/game/parse";
 import { emptySave, mergeSave, normalizeSave, sameSave, type DigSaveData } from "~/game/save";
-import type { Dir, GameState, Level } from "~/game/types";
+import type { Dir, GameState, Level, Sound } from "~/game/types";
 import { api } from "~/trpc/react";
 import { Board } from "./board";
-import { Jigsaw } from "./jigsaw";
-import { Shaft } from "./shaft";
+import { Icon, Sprite, type SpriteName } from "./sprite";
 
 const STORAGE_KEY = "loamly-dig-v1";
+const LAST_LEVEL_KEY = "henyard-farm-level-v2";
+const SOUND_KEY = "henyard-sound";
+const FIRST = LEVELS[0]!;
+const ARROWS: Record<Dir, string> = { up: "↑", down: "↓", left: "←", right: "→" };
+const DIR_LABELS: Record<Dir, string> = { up: "向上", down: "向下", left: "向左", right: "向右" };
 
-type View = "shaft" | "play" | "jigsaw";
+function persist(key: string, value: string): boolean {
+  try { localStorage.setItem(key, value); return true; } catch { return false; }
+}
 
-function readLocal(): DigSaveData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? normalizeSave(JSON.parse(raw) as unknown) : emptySave;
-  } catch {
-    return emptySave;
-  }
+function Modal({ title, onClose, children, className = "" }: { title: string; onClose: () => void; children: ReactNode; className?: string }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const node = ref.current;
+    node?.showModal();
+    return () => { node?.close(); };
+  }, []);
+  return <dialog ref={ref} className={`farm-dialog ${className}`} aria-label={title} onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div className="dialog-body"><button type="button" className="icon-button dialog-close" aria-label="关闭弹窗" onClick={onClose}><Icon name="close" /></button>{children}</div>
+  </dialog>;
+}
+
+function Goal({ sprite, title, detail, done }: { sprite: SpriteName; title: string; detail: string; done: boolean }) {
+  return <div className={`goal-row ${done ? "done" : ""}`}><Sprite name={sprite} /><span><strong>{title}</strong><small>{detail}</small></span><b>{done ? "✓" : "○"}</b></div>;
 }
 
 export function GameApp() {
   const query = api.dig.get.useQuery(undefined, { retry: false, refetchOnWindowFocus: false });
   const sync = api.dig.sync.useMutation();
-  const [booted, setBooted] = useState(false);
   const [save, setSave] = useState<DigSaveData>(emptySave);
-  const [view, setView] = useState<View>("shaft");
-  const [level, setLevel] = useState<Level | null>(null);
-  const [state, setState] = useState<GameState | null>(null);
+  const [level, setLevel] = useState<Level>(FIRST);
+  const [state, setState] = useState<GameState>(() => parseLevel(FIRST));
   const [past, setPast] = useState<GameState[]>([]);
-  const [jigsawWorld, setJigsawWorld] = useState("5");
-  const [shake, setShake] = useState(false);
+  const [booted, setBooted] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [localSaved, setLocalSaved] = useState(true);
+  const [overlay, setOverlay] = useState<"map" | "help" | null>(null);
+  const [hints, setHints] = useState(0);
   const [bonk, setBonk] = useState(false);
-  const [singing, setSinging] = useState(false);
-  const [burst, setBurst] = useState<{ id: number; kind: string } | null>(null);
-
-  const viewRef = useRef(view);
-  const stateRef = useRef(state);
-  const pastRef = useRef(past);
-  const levelRef = useRef(level);
-  viewRef.current = view;
-  stateRef.current = state;
-  pastRef.current = past;
-  levelRef.current = level;
-
-  function commit(next: DigSaveData) {
-    setSave(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    sync.mutate(next);
-  }
-  const commitRef = useRef(commit);
-  commitRef.current = commit;
-  const saveRef = useRef(save);
-  saveRef.current = save;
+  const [notice, setNotice] = useState("用方向键，带小鸡们出发吧。");
+  const [dismissResult, setDismissResult] = useState(false);
+  const stateRef = useRef(state), pastRef = useRef(past), saveRef = useRef(save);
+  stateRef.current = state; pastRef.current = past; saveRef.current = save;
+  const bonkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setSave(readLocal());
+    try {
+      const local = normalizeSave(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as unknown);
+      setSave((current) => mergeSave(current, local));
+      setMuted(localStorage.getItem(SOUND_KEY) === "off");
+      const id = localStorage.getItem(LAST_LEVEL_KEY);
+      const previous = id ? getLevel(id) : undefined;
+      const selected = previous ?? LEVELS.find((item) => !local.cleared.includes(item.id)) ?? FIRST;
+      setLevel(selected); setState(parseLevel(selected));
+    } catch { /* A blocked storage area never prevents playing. */ }
     setBooted(true);
+    return () => { if (bonkTimer.current) clearTimeout(bonkTimer.current); };
   }, []);
 
   useEffect(() => {
-    if (!query.data) return;
+    if (!query.data || !booted) return;
     setSave((current) => {
       const merged = mergeSave(current, query.data);
       if (sameSave(merged, current)) return current;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      persist(STORAGE_KEY, JSON.stringify(merged));
       return merged;
     });
-  }, [query.data]);
+  }, [query.data, booted]);
 
   useEffect(() => {
-    if (!state?.won || !level) return;
-    const prior = saveRef.current.best.find((item) => item.id === level.id);
-    const bestMoves = prior ? Math.min(prior.moves, state.moves) : state.moves;
-    const next = mergeSave(saveRef.current, {
-      cleared: [level.id],
-      hats: state.hats,
-      jigsaws: [],
-      best: [{ id: level.id, moves: bestMoves }],
-    });
+    if (!state.won) return;
+    const next = mergeSave(saveRef.current, { cleared: [state.levelId], hats: state.hats, jigsaws: [], best: [{ id: state.levelId, moves: state.moves }] });
     if (sameSave(next, saveRef.current)) return;
-    commitRef.current(next);
-  }, [state?.won, state?.hats, level]);
+    saveRef.current = next;
+    setSave(next);
+    setLocalSaved(persist(STORAGE_KEY, JSON.stringify(next)));
+    sync.mutate(next);
+  // Mutation identity is not a gameplay dependency.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.won, state.levelId, state.moves, state.hats]);
 
+  function sound(kind: Sound) { if (!muted) playSound(kind); }
   function play(id: string) {
     const found = getLevel(id);
     if (!found) return;
     const fresh = parseLevel(found);
-    levelRef.current = found;
-    stateRef.current = fresh;
-    pastRef.current = [];
-    viewRef.current = "play";
-    setLevel(found);
-    setState(fresh);
-    setPast([]);
-    setView("play");
+    stateRef.current = fresh; pastRef.current = [];
+    setLevel(found); setState(fresh); setPast([]); setHints(0); setOverlay(null); setDismissResult(false);
+    setNotice(found.insight ?? found.hint);
+    persist(LAST_LEVEL_KEY, id);
   }
-
-  function remember(next: GameState, sound: Parameters<typeof playSound>[0]) {
-    const current = stateRef.current;
-    if (!current) return;
-    const stack = [...pastRef.current, current].slice(-200);
-    pastRef.current = stack;
-    stateRef.current = next;
-    setPast(stack);
-    setState(next);
-    playSound(sound);
-    if (sound === "eat" || sound === "gold" || sound === "push" || sound === "grow" || sound === "cut" || sound === "splash") {
-      setBurst({ id: next.moves, kind: sound });
-    }
-    if (sound === "cut") {
-      setShake(true);
-      window.setTimeout(() => setShake(false), 240);
-    }
-  }
-
   function move(dir: Dir) {
     const current = stateRef.current;
-    if (!current || current.won || current.lost || viewRef.current !== "play") return;
+    if (current.won || current.lost || overlay || !booted) return;
     const step = applyMove(current, activeIndex(current), dir);
     if (!step) {
-      playSound("no");
-      setBonk(true);
-      window.setTimeout(() => setBonk(false), 140);
+      sound("no"); setBonk(true);
+      setNotice("这边暂时过不去，换个方向试试。走错了随时可以撤销。");
+      if (bonkTimer.current) clearTimeout(bonkTimer.current);
+      bonkTimer.current = setTimeout(() => setBonk(false), 180);
       return;
     }
-    remember(step.state, step.sound);
+    const history = [...pastRef.current, current];
+    pastRef.current = history; stateRef.current = step.state;
+    setPast(history); setState(step.state); setDismissResult(false); sound(step.sound);
+    const feedback: Partial<Record<Sound, string>> = {
+      gold: "一簇浆果，收好啦。", grow: "新的小伙伴加入了队伍。", push: "木桶往前挪了一格。",
+      splash: "木桶顺着水流漂到了下游。", egg: step.state.worms.some((w) => w.carrying) ? "轻轻抱好，带它回小巢。" : "鸡蛋已经安稳地放进小巢。",
+      crack: "蛋不小心裂了。撤销一步，再换条干燥的小路。", win: "大家平安回家了。", lock: "门闩换了一个方向。",
+    };
+    setNotice(feedback[step.sound] ?? (goalsReady(step.state) ? "收获齐了，带 1 号母鸡走进写着「回家」的草窝。" : "小鸡们正跟着你的脚印。"));
   }
-
   function undo() {
     const previous = pastRef.current.at(-1);
     if (!previous) return;
-    const stack = pastRef.current.slice(0, -1);
-    pastRef.current = stack;
-    stateRef.current = previous;
-    setPast(stack);
-    setState(previous);
-    playSound("move");
+    const history = pastRef.current.slice(0, -1);
+    pastRef.current = history; stateRef.current = previous;
+    setPast(history); setState(previous); setDismissResult(false); setNotice("回到上一步。慢慢想，不着急。"); sound("move");
   }
-
   function restart() {
-    const found = levelRef.current;
-    if (!found) return;
-    const current = stateRef.current;
-    if (current) {
-      const stack = [...pastRef.current, current].slice(-200);
-      pastRef.current = stack;
-      setPast(stack);
-    }
-    const fresh = parseLevel(found);
-    stateRef.current = fresh;
-    setState(fresh);
+    const fresh = parseLevel(level);
+    const history = [...pastRef.current, stateRef.current];
+    pastRef.current = history; stateRef.current = fresh;
+    setPast(history); setState(fresh); setDismissResult(false); setNotice("重新出发。刚才的重来也可以撤销。");
   }
-
-  function snip() {
-    const current = stateRef.current;
-    if (!current || current.won || current.lost) return;
-    const step = applySnip(current, activeIndex(current));
-    if (!step) {
-      playSound("no");
-      return;
-    }
-    remember(step.state, step.sound);
+  function focus(id: string) {
+    if (stateRef.current.won || stateRef.current.lost || overlay) return;
+    const next = { ...stateRef.current, activeId: id };
+    stateRef.current = next; setState(next);
   }
-
   function swap() {
     const current = stateRef.current;
-    if (!current || current.worms.length < 2) return;
-    const index = activeIndex(current);
-    const next = current.worms[(index + 1) % current.worms.length];
-    if (!next) return;
-    const switched = { ...current, activeId: next.id };
-    stateRef.current = switched;
-    setState(switched);
+    const next = current.worms[(activeIndex(current) + 1) % current.worms.length];
+    if (next) focus(next.id);
   }
-
-  function hum() {
-    sing();
-    setSinging(true);
-    window.setTimeout(() => setSinging(false), 900);
-  }
-
-  const actions = useRef({ move, undo, restart, snip, swap, hum });
-  actions.current = { move, undo, restart, snip, swap, hum };
-
+  const actions = useRef({ move, undo, restart, swap, blocked: false });
+  actions.current = { move, undo, restart, swap, blocked: !!overlay || ((state.won || !!state.lost) && !dismissResult) };
   useEffect(() => {
-    let held: Dir | null = null;
-    let timer: number | null = null;
-    const stop = () => {
-      held = null;
-      if (timer !== null) window.clearInterval(timer);
-      timer = null;
-    };
-    const start = (dir: Dir) => {
-      if (held === dir) return;
-      stop();
-      held = dir;
-      actions.current.move(dir);
-      timer = window.setInterval(() => actions.current.move(dir), 145);
-    };
-    function dirFromKey(key: string): Dir | null {
-      const lower = key.toLowerCase();
-      if (key === "ArrowUp" || lower === "w") return "up";
-      if (key === "ArrowDown" || lower === "s") return "down";
-      if (key === "ArrowLeft" || lower === "a") return "left";
-      if (key === "ArrowRight" || lower === "d") return "right";
-      return null;
-    }
-    function onKey(event: KeyboardEvent) {
-      if (viewRef.current !== "play") return;
-      const dir = dirFromKey(event.key);
-      if (dir) {
-        event.preventDefault();
-        if (!event.repeat) start(dir);
-        return;
-      }
+    const down = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLElement && (event.target.matches("input, textarea, select") || event.target.isContentEditable)) return;
+      if (actions.current.blocked) return;
       const key = event.key.toLowerCase();
-      if (key === " " || key === "tab") event.preventDefault();
-      if (event.repeat) return;
-      if (key === "z" || key === "u" || key === "backspace") actions.current.undo();
-      else if (key === "r") actions.current.restart();
-      else if (key === " ") actions.current.snip();
-      else if (key === "tab" || key === "q" || key === "e") actions.current.swap();
-      else if (key === "g") actions.current.hum();
-      else if (key === "escape") setView("shaft");
-    }
-    function onUp(event: KeyboardEvent) {
-      if (dirFromKey(event.key) === held) stop();
-    }
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("keyup", onUp);
-    window.addEventListener("blur", stop);
-    return () => {
-      stop();
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("keyup", onUp);
-      window.removeEventListener("blur", stop);
+      const dirs: Record<string, Dir> = { arrowup: "up", w: "up", arrowdown: "down", s: "down", arrowleft: "left", a: "left", arrowright: "right", d: "right" };
+      const dir = dirs[key];
+      if (dir) { event.preventDefault(); if (!event.repeat) actions.current.move(dir); }
+      else if (key === "z" || key === "backspace") { event.preventDefault(); if (!event.repeat) actions.current.undo(); }
+      else if (key === "r" && !event.repeat) actions.current.restart();
+      else if (key === "q" && !event.repeat) actions.current.swap();
     };
+    window.addEventListener("keydown", down);
+    return () => window.removeEventListener("keydown", down);
   }, []);
 
-  if (!booted) {
-    return (
-      <main className="loam-app">
-        <p className="loam-loading">正在打开鸡舍的门…</p>
-      </main>
-    );
-  }
-
-  if (view === "jigsaw") {
-    return (
-      <main className="loam-app">
-        <Jigsaw
-          worldName={jigsawWorld === "10" ? "第十栏" : "第五栏"}
-          onBack={() => setView("shaft")}
-          onSolved={() => {
-            commitRef.current(
-              mergeSave(saveRef.current, { cleared: [], hats: [], jigsaws: [jigsawWorld], best: [] }),
-            );
-            setView("shaft");
-          }}
-        />
-      </main>
-    );
-  }
-
-  if (view === "shaft" || !level || !state) {
-    return (
-      <main className="loam-app">
-        <Shaft
-          save={save}
-          onPlay={play}
-          onJigsaw={(world) => {
-            setJigsawWorld(world);
-            setView("jigsaw");
-          }}
-        />
-      </main>
-    );
-  }
-
-  const world = WORLDS.find((item) => item.id === level.world);
+  const world = WORLDS.find((item) => item.id === level.world)!;
+  const chapter = levelsIn(level.world);
+  const index = LEVELS.findIndex((item) => item.id === level.id);
+  const totalBerries = level.rows.join("").split("G").length - 1;
+  const remainingBerries = state.cells.filter((cell) => cell.pickup?.kind === "gold").length;
+  const totalEggs = level.rows.join("").split("E").length - 1;
+  const delivered = state.cells.filter((cell) => cell.fixture?.kind === "nest" && cell.fixture.filled).length;
+  const completed = LEVELS.filter((item) => save.cleared.includes(item.id)).length;
   const upcoming = nextLevelId(level.id);
-  const hatOnMap = level.rows.some((row) => row.includes("H"));
-  const wormNo = activeIndex(state) + 1;
+  const record = save.best.find((item) => item.id === level.id);
+  const hintList = level.hints ?? [level.hint];
+  const hasBarrel = level.rows.some((row) => row.includes("R"));
+  const hasPlate = level.rows.some((row) => row.includes("B"));
+  const showResult = (state.won || !!state.lost) && !dismissResult;
 
-  const snippable = canSnip(state, activeIndex(state));
+  return <main className="henyard-app">
+    <header className="site-header">
+      <a className="brand" href="/" aria-label="咕咕归巢首页"><Sprite name="hen" /><span><strong>咕咕归巢</strong><small>H E N Y A R D</small></span></a>
+      <span className="header-caption">一小片田园，一点点巧思。</span>
+      <nav className="header-actions" aria-label="游戏菜单">
+        <button type="button" className="text-button" onClick={() => setOverlay("map")}><Icon name="map" /><span>农场地图</span></button>
+        <button type="button" className="icon-button" aria-label={muted ? "开启声音" : "关闭声音"} aria-pressed={!muted} onClick={() => { setMuted(!muted); persist(SOUND_KEY, muted ? "on" : "off"); }}><Icon name={muted ? "mute" : "sound"} /></button>
+        <button type="button" className="icon-button help-button" aria-label="玩法说明" onClick={() => setOverlay("help")}><Icon name="help" /></button>
+      </nav>
+    </header>
 
-  return (
-    <main className="loam-app is-play">
-      <header className="loam-playbar">
-        <button type="button" className="loam-icon" onClick={() => setView("shaft")} aria-label="回到农庄">
-          ←
-        </button>
-        <div className="loam-play-title">
-          <p className="loam-kicker">
-            {world?.name}
-            {state.worms.length > 1 ? ` · 母鸡 ${wormNo}/${state.worms.length}` : ""}
-            {` · 第 ${state.moves} 步`}
-          </p>
-          <h1>{level.name}</h1>
-          <p className="loam-hint">{level.hint}</p>
+    <section className="welcome"><span className="eyebrow"><span /> A LITTLE FARM, A LITTLE WONDER</span><h1>慢慢走，<em>一起回家。</em></h1><p>带上毛茸茸的小伙伴，把田野里的小小收获带回家。</p></section>
+
+    <div className="game-layout">
+      <aside className="journey-panel" aria-label="章节与关卡">
+        <div className="section-heading"><span>农场漫游</span><small>{completed} / {LEVELS.length}</small></div>
+        <div className="journey-progress"><span style={{ width: `${completed / LEVELS.length * 100}%` }} /></div>
+        <div className="chapter-list">{WORLDS.map((item) => <button key={item.id} type="button" className={`chapter-button ${item.id === world.id ? "selected" : ""}`} aria-pressed={item.id === world.id} onClick={() => play(levelsIn(item.id).find((l) => !save.cleared.includes(l.id))?.id ?? levelsIn(item.id)[0]!.id)}><Sprite name={item.icon} /><span><small>CHAPTER {item.depth}</small><strong>{item.name}</strong></span><span className="chapter-chevron">›</span></button>)}</div>
+        <div className="chapter-lessons"><p>{world.subtitle}</p><ol>{chapter.map((item, i) => <li key={item.id}><button type="button" className={`level-button ${item.id === level.id ? "current" : ""}`} aria-current={item.id === level.id ? "step" : undefined} onClick={() => play(item.id)}><span className={`level-dot ${save.cleared.includes(item.id) ? "cleared" : ""}`}>{save.cleared.includes(item.id) ? "✓" : String(i + 1).padStart(2, "0")}</span><span>{item.name}</span>{item.challenge ? <small className="challenge-dot" title="选修挑战">✧</small> : null}</button></li>)}</ol></div>
+        <div className="sidebar-note"><Sprite name="grass" /><p>没有倒计时，也不用赶路。<br />卡住时，去别处逛逛也很好。</p></div>
+      </aside>
+
+      <section className="play-panel" aria-label="当前关卡">
+        <div className="level-heading"><div className="level-number">{String(index + 1).padStart(2, "0")}</div><div><div className="level-kicker">{world.name}<span> / </span>{level.challenge ? "选修小挑战" : level.difficulty === 1 ? "轻松发现" : "动动脑筋"}</div><h2>{level.name}</h2></div><div className="move-counter"><strong>{state.moves}</strong><span>步</span></div></div>
+        <div className="board-surround"><div className="weather-note"><Icon name="sun" /><span>宜 · 出门散步</span><span className="flock-count"><Sprite name="chick" />{state.worms.reduce((n, w) => n + w.segments.length - 1, 0)} 位小伙伴</span></div>
+          <Board key={level.id} state={state} bonk={bonk} onMove={move} onFocusWorm={focus} />
         </div>
-        <div className="loam-play-actions">
-          {state.worms.length > 1 ? (
-            <button type="button" className="loam-icon" onClick={swap} aria-label="换一只母鸡">
-              换
-            </button>
-          ) : null}
-          <button type="button" className="loam-icon" onClick={undo} aria-label="撤销">
-            ↩
-          </button>
-          <button type="button" className="loam-icon" onClick={restart} aria-label="重来">
-            ↻
-          </button>
-        </div>
-      </header>
-      <div className="loam-stage">
-        <Board
-          state={state}
-          shake={shake}
-          bonk={bonk}
-          singing={singing}
-          burst={burst}
-          onMove={move}
-          onFocusWorm={(id) => {
-            const current = stateRef.current;
-            if (!current) return;
-            const switched = { ...current, activeId: id };
-            stateRef.current = switched;
-            setState(switched);
-          }}
-        />
-        {snippable ? (
-          <button type="button" className="loam-snip" onClick={snip}>
-            剪开
-          </button>
-        ) : null}
-      </div>
-      <div className="loam-touch" aria-label="方向">
-        <button type="button" className="loam-up" onClick={() => move("up")} aria-label="向上">
-          ↑
-        </button>
-        <button type="button" onClick={() => move("left")} aria-label="向左">
-          ←
-        </button>
-        <button type="button" onClick={() => move("down")} aria-label="向下">
-          ↓
-        </button>
-        <button type="button" onClick={() => move("right")} aria-label="向右">
-          →
-        </button>
-      </div>
-      {state.won ? (
-        <div className="loam-card" role="dialog" aria-label="过关">
-          <h2>鸡舍门开了</h2>
-          <p>
-            {level.name}收好了。
-            {level.par ? `最短 ${level.par} 步，你用了 ${state.moves} 步。` : `用了 ${state.moves} 步。`}
-            {level.par && state.moves <= level.par ? "和最短一样短。" : ""}
-            {hatOnMap && state.hats.length === 0 ? "这栏的草帽还在院子里。" : ""}
-          </p>
-          <div className="loam-card-actions">
-            {hatOnMap && state.hats.length === 0 ? (
-              <button type="button" onClick={restart}>
-                再走一趟
-              </button>
-            ) : null}
-            {upcoming ? (
-              <button type="button" onClick={() => play(upcoming)}>
-                下一栏
-              </button>
-            ) : (
-              <button type="button" onClick={() => setView("shaft")}>
-                回到农庄
-              </button>
-            )}
-          </div>
-        </div>
-      ) : null}
-      {state.lost === "egg" ? (
-        <div className="loam-card" role="dialog" aria-label="蛋碎了">
-          <h2>蛋裂了</h2>
-          <p>这枚蛋接不回去。撤销刚才那一步，或者重来。</p>
-          <div className="loam-card-actions">
-            <button type="button" onClick={undo}>
-              撤销
-            </button>
-            <button type="button" onClick={restart}>
-              重来
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {state.lost === "dead" ? (
-        <div className="loam-card" role="dialog" aria-label="没有母鸡了">
-          <h2>没有母鸡了</h2>
-          <p>队伍剪没了。撤销，或者重来。</p>
-          <div className="loam-card-actions">
-            <button type="button" onClick={undo}>
-              撤销
-            </button>
-            <button type="button" onClick={restart}>
-              重来
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </main>
-  );
+        <div className="control-dock"><div className="directions" aria-label="移动控制">{(["up", "down", "left", "right"] as Dir[]).map((dir) => <button key={dir} type="button" className="direction-button" onClick={() => move(dir)} aria-label={DIR_LABELS[dir]} disabled={!booted || state.won || !!state.lost}>{ARROWS[dir]}</button>)}</div><div className="dock-divider" /><button type="button" className="tool-button" onClick={undo} disabled={!past.length} aria-label="撤销一步"><Icon name="undo" /><span>撤销</span></button><button type="button" className="tool-button" onClick={restart} aria-label="重新开始本关"><Icon name="restart" /><span>重来</span></button>{state.worms.length > 1 ? <button type="button" className="tool-button" onClick={swap} aria-label="切换母鸡"><Sprite name="hen" /><span>换队</span></button> : null}</div>
+        <p className="keyboard-tip"><kbd>↑ ↓ ← →</kbd> 或 <kbd>W A S D</kbd> 移动 <span>·</span> <kbd>Z</kbd> 撤销 <span>·</span> <kbd>R</kbd> 重来 {state.worms.length > 1 ? <><span>·</span><kbd>Q</kbd> 换队</> : null}</p>
+        <p className="touch-tip">轻点方向按钮，或在草地上滑动</p>
+        <div className="status-line" role="status" aria-live="polite"><span />{notice}</div>
+      </section>
+
+      <aside className="field-notes" aria-label="目标与提示">
+        <section className="paper-card objectives"><span className="card-pin" /><p className="eyebrow">TODAY’S LITTLE QUEST</p><h3>今日的小任务</h3><Goal sprite="berries" title="收集红浆果" detail={`${totalBerries - remainingBerries} / ${totalBerries} 簇已收好`} done={remainingBerries === 0} />{totalEggs > 0 ? <Goal sprite="egg" title="把鸡蛋送回小巢" detail={`${delivered} / ${totalEggs} 枚已安顿`} done={delivered === totalEggs} /> : null}<Goal sprite="nest" title="一起平安归巢" detail={goalsReady(state) ? "带队母鸡可以回家啦" : "收好所有任务后回家"} done={state.won} /><p className="quest-footer">{record ? `最好记录 ${record.moves} 步 · 今天也慢慢来` : "每一次小小的发现，都值得开心。"}</p></section>
+        <section className="field-tip"><div className="tip-heading"><Sprite name="chick" /><h3>田野小贴士</h3></div><p>{level.insight}</p><button type="button" className="hint-button" onClick={() => setHints((n) => Math.min(hintList.length, n + 1))} disabled={hints >= hintList.length}>{hints === 0 ? "给我一点小提示" : hints < hintList.length ? "再说得具体一点" : "提示都在这里啦"}<span>{hints === 0 ? "＋" : `${hints} / ${hintList.length}`}</span></button>{hints > 0 ? <ol className="hint-list" aria-live="polite">{hintList.slice(0, hints).map((hint, i) => <li key={hint}><small>线索 {i + 1}</small>{hint}</li>)}</ol> : <small className="hint-caption">先自己试试，灵感随时在这里。</small>}</section>
+        <section className="field-guide"><h3>在这片田野里</h3><div><Sprite name="hen" /><span>你走一步，小鸡跟一步</span></div>{hasBarrel ? <div><Sprite name="barrel" /><span>木桶只能推，不能拉</span></div> : null}{hasPlate ? <div><Sprite name="plate" /><span>压住踏板，打开同记号的门</span></div> : <div><Sprite name="berries" /><span>红浆果要全部带回家</span></div>}{totalEggs > 0 ? <div><Sprite name="filledNest" /><span>白蛋送小巢，泥塘要绕开</span></div> : <div><Sprite name="corn" /><span>吃到玉米，多一只小鸡</span></div>}</section>
+      </aside>
+    </div>
+    <footer className="site-footer"><span>HENYARD <i>✦</i> 小小农场，大大的好奇心</span><span>{!localSaved ? "浏览器未能保存进度" : sync.isError || query.isError ? "进度已保存在这台设备" : "进度自动保存"}<b className="save-dot" /></span></footer>
+
+    {overlay === "map" ? <Modal title="农场地图" onClose={() => setOverlay(null)} className="map-dialog"><p className="eyebrow">YOUR LITTLE JOURNEY</p><h2>想去哪里走走？</h2><p>四片田野，24 个小发现。所有关卡都可以自由探索。</p><div className="map-chapters">{WORLDS.map((item) => <section key={item.id}><h3><Sprite name={item.icon} />{item.depth} · {item.name}</h3><p>{item.blurb}</p><div>{levelsIn(item.id).map((l) => <button type="button" key={l.id} className={l.id === level.id ? "chosen" : ""} onClick={() => play(l.id)}><b>{String(LEVELS.indexOf(l) + 1).padStart(2, "0")}</b><span>{l.name}{l.challenge ? <small>选修挑战</small> : null}</span>{save.cleared.includes(l.id) ? "✓" : "›"}</button>)}</div></section>)}</div></Modal> : null}
+    {overlay === "help" ? <Modal title="玩法说明" onClose={() => setOverlay(null)}><Sprite name="hen" className="dialog-mascot" /><p className="eyebrow">A FIELD GUIDE</p><h2>跟着妈妈，一起回家。</h2><p>用方向键、WASD、屏幕按钮，或在棋盘滑动。每次只走一格，小鸡会沿着脚印跟随。</p><div className="help-rules"><Goal sprite="berries" title="收齐浆果" detail="红浆果全部收好，才可以回家。" done={false} /><Goal sprite="corn" title="带上新伙伴" detail="玉米让队伍变长；留一点转身的空间。" done={false} /><Goal sprite="plate" title="帮忙留门" detail="母鸡、小鸡、木桶都能压踏板。栅门会等队伍通过。" done={false} /><Goal sprite="egg" title="照顾鸡蛋" detail="一次抱一枚，送进标有「蛋」的小巢。抱蛋时避开泥塘。" done={false} /><Goal sprite="nest" title="结束散步" detail="完成任务后，让带队的 1 号母鸡走进「回家」草窝。" done={false} /></div><p className="help-foot">Z 撤销 · R 重来 · Q 切换母鸡（或直接点选）<br />重来也能撤销。没有时间限制，可以随时换一关。</p><button type="button" className="primary-button" onClick={() => setOverlay(null)}>知道啦，去散步 <Icon name="arrow" /></button></Modal> : null}
+    {showResult && !overlay ? <Modal title={state.won ? "平安归巢" : "再试一条小路"} onClose={() => setDismissResult(true)}><div className="result-art"><Sprite name={state.won ? "filledNest" : "egg"} /><Sprite name="hen" /><Sprite name="chick" /></div><p className="eyebrow">{state.won ? "HOME, SWEET HOME" : "TAKE YOUR TIME"}</p><h2>{state.won ? "一家子，整整齐齐。" : "没关系，再试一条小路。"}</h2><p>{state.won ? `「${level.name}」的收获已经带回家，今天走了 ${state.moves} 步。` : "蛋在泥塘里磕裂了。撤销刚刚那一步，试着从干燥的草地绕过去。"}</p>{state.won ? <><div className="result-discovery"><small>这次的小发现</small><p>{level.insight}</p></div><p className="result-record">{level.par && state.moves <= level.par ? "✧ 恰到好处！你找到了最短路线。" : level.par ? `还想再琢磨一下？这关存在 ${level.par} 步的路线。` : "这份发现，已经记在农场手记里了。"}</p>{!upcoming ? <p>四片田野都逛过啦。地图上还有没完成的发现，也可以随时回去看看。</p> : null}<div className="dialog-actions"><button type="button" onClick={restart}>再散步一次</button><button type="button" className="primary-button" onClick={() => upcoming ? play(upcoming) : setOverlay("map")}>{upcoming ? "去下一片小天地" : "看看农场地图"}<Icon name="arrow" /></button></div></> : <div className="dialog-actions"><button type="button" onClick={restart}>重新出发</button><button type="button" className="primary-button" onClick={undo}>撤销一步 <Icon name="undo" /></button></div>}</Modal> : null}
+  </main>;
 }

@@ -1,5 +1,5 @@
 import { applyMove, applySnip } from "./engine";
-import type { Cell, GameState } from "./types";
+import type { Cell, Dir, GameState } from "./types";
 import { DIRS } from "./engine";
 
 function fixtureCode(cell: Cell): string {
@@ -30,7 +30,7 @@ export function hashState(state: GameState): string {
   const worms = state.worms
     .map((worm) => {
       const body = worm.segments.map((seg) => `${seg.x},${seg.y}`).join(".");
-      return `${worm.carrying ? "1" : "0"}:${body}`;
+      return `${state.gentle ? worm.id : ""}:${worm.carrying ? "1" : "0"}:${body}`;
     })
     .sort();
   hash += worms.join("|");
@@ -42,6 +42,7 @@ export type SolveResult = {
   reason: "solved" | "stuck" | "budget";
   nodes: number;
   moves: number;
+  path: { wormId: string; dir: Dir | "snip" }[];
 };
 
 export function solve(
@@ -51,20 +52,24 @@ export function solve(
   const maxNodes = options?.maxNodes ?? 80_000;
   const maxMoves = options?.maxMoves ?? 100;
   const needHat = options?.needHat ?? false;
-  const queue: GameState[] = [start];
+  type Node = { state: GameState; parent: number; action?: SolveResult["path"][number] };
+  const queue: Node[] = [{ state: start, parent: -1 }];
   const seen = new Set<string>([hashState(start)]);
   let cursor = 0;
 
   while (cursor < queue.length) {
     if (seen.size > maxNodes) {
-      return { ok: false, reason: "budget", nodes: seen.size, moves: 0 };
+      return { ok: false, reason: "budget", nodes: seen.size, moves: 0, path: [] };
     }
-    const state = queue[cursor];
+    const state = queue[cursor]?.state;
     cursor += 1;
     if (!state || state.moves > maxMoves) continue;
     if (state.won) {
       if (!needHat || state.hats.length > 0) {
-        return { ok: true, reason: "solved", nodes: seen.size, moves: state.moves };
+        const path: SolveResult["path"] = [];
+        let node = queue[cursor - 1];
+        while (node?.action) { path.push(node.action); node = queue[node.parent]; }
+        return { ok: true, reason: "solved", nodes: seen.size, moves: state.moves, path: path.reverse() };
       }
       continue;
     }
@@ -73,19 +78,19 @@ export function solve(
     for (let wormIndex = 0; wormIndex < state.worms.length; wormIndex++) {
       for (const dir of DIRS) {
         const step = applyMove(state, wormIndex, dir);
-        if (step) enqueue(step.state);
+        if (step) enqueue(step.state, { wormId: state.worms[wormIndex]!.id, dir });
       }
       const snip = applySnip(state, wormIndex);
-      if (snip) enqueue(snip.state);
+      if (snip) enqueue(snip.state, { wormId: state.worms[wormIndex]!.id, dir: "snip" });
     }
   }
 
-  return { ok: false, reason: "stuck", nodes: seen.size, moves: 0 };
+  return { ok: false, reason: "stuck", nodes: seen.size, moves: 0, path: [] };
 
-  function enqueue(state: GameState) {
+  function enqueue(state: GameState, action: SolveResult["path"][number]) {
     const key = hashState(state);
     if (seen.has(key)) return;
     seen.add(key);
-    queue.push(state);
+    queue.push({ state, parent: cursor - 1, action });
   }
 }

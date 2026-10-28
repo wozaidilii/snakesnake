@@ -3,8 +3,13 @@
  * for Docker builds.
  */
 import "./src/env.js";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  outputFileTracingRoot: dirname(fileURLToPath(import.meta.url)),
+  devIndicators: false,
+};
 
 export default config;

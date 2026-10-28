@@ -76,6 +76,10 @@ export function doorIsOpen(
   state: GameState,
   door: { color: Color; gate?: "hold" | "flip" },
 ): boolean {
+  if (state.gentle && state.worms.some((worm) => worm.segments.some((point) => {
+    const fixture = at(state, point)?.fixture;
+    return fixture?.kind === "door" && fixture.color === door.color && fixture.gate === door.gate;
+  }))) return true;
   if (door.gate === "flip") return state.flips[door.color];
   return isPressed(state, door.color);
 }
@@ -195,6 +199,7 @@ function rockTouchesWorm(state: GameState): boolean {
 }
 
 function resolveCuts(state: GameState): boolean {
+  if (state.gentle) return false;
   let any = false;
   for (let pass = 0; pass < 8; pass++) {
     let cutThisPass = false;
@@ -249,6 +254,7 @@ function finish(state: GameState, sound: Sound, cut: boolean): StepResult {
   if (cut) sound = louder(sound, "cut");
   if (!state.lost && goalsReady(state)) {
     const escaped = state.worms.some((worm) => {
+      if (state.gentle && worm.id !== "w0") return false;
       const head = worm.segments[0];
       return head ? at(state, head)?.fixture?.kind === "exit" : false;
     });
@@ -381,7 +387,7 @@ export function applyMove(
     sound = louder(sound, "egg");
   }
 
-  if (cell.fixture?.kind === "nest" && moving.carrying) {
+  if (cell.fixture?.kind === "nest" && !cell.fixture.filled && moving.carrying) {
     cell.fixture = { kind: "nest", filled: true };
     moving.carrying = false;
     sound = louder(sound, "egg");

@@ -104,6 +104,7 @@ export function parseLevel(level: Level): GameState {
   }
 
   const state: GameState = {
+    gentle: level.gentle,
     levelId: level.id,
     width,
     height,
@@ -123,7 +124,7 @@ export function parseLevel(level: Level): GameState {
   const exits = cells.filter((cell) => cell.fixture?.kind === "exit").length;
   const eggs = cells.filter((cell) => cell.pickup?.kind === "egg").length;
   const nests = cells.filter((cell) => cell.fixture?.kind === "nest").length;
-  if (gold < 1) throw new Error(`${level.id} 没有金蛋`);
+  if (gold < 1) throw new Error(`${level.id} 没有收集目标`);
   if (exits !== 1) throw new Error(`${level.id} 应该有且只有一个出口`);
   if (eggs !== nests) throw new Error(`${level.id} 的蛋和巢数量不一致`);
   return state;
