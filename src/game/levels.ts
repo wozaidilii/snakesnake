@@ -16,5 +16,9 @@ export const TIERS = WORLDS.map((world, i) => ({ id: String(i + 1), name: world.
 export const LEVELS: Level[] = CAMPAIGN.map((level) => ({ ...level, par: PARS[level.id] }));
 export const levelsInTier = (tier: string) => LEVELS.filter((level) => level.rank === tier);
 export const levelsIn = (world: WorldId) => LEVELS.filter((level) => level.world === world);
-export const getLevel = (id: string) => LEVELS.find((level) => level.id === id) ?? LEVELS.find((level) => level.id === `${id}-r2`);
+/** Old selections resume the matching puzzle, while scores remain version-specific. */
+export const getLevel = (id: string) => {
+  const base = /^flock-(\d{2})(?:-r\d+)?$/.exec(id)?.[1];
+  return LEVELS.find((level) => level.id === id) ?? (base ? LEVELS.find((level) => level.id === `flock-${base}-r3`) : undefined);
+};
 export const nextLevelId = (id: string) => LEVELS[LEVELS.findIndex((level) => level.id === id) + 1]?.id ?? null;

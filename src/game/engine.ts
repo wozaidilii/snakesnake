@@ -11,6 +11,13 @@ import type {
 
 export const DIRS: Dir[] = ["up", "down", "left", "right"];
 
+export const OPPOSITE: Record<Dir, Dir> = { up: "down", down: "up", left: "right", right: "left" };
+
+export function isReverse(state: GameState, wormIndex: number, dir: Dir): boolean {
+  const worm = state.worms[wormIndex];
+  return !!state.noReverse && !!worm && OPPOSITE[worm.facing] === dir;
+}
+
 export const DIR_DELTA: Record<Dir, Point> = {
   up: { x: 0, y: -1 },
   down: { x: 0, y: 1 },
@@ -324,6 +331,7 @@ export function applyMove(
   const worm = state.worms[wormIndex];
   const head = worm?.segments[0];
   if (!worm || !head) return null;
+  if (isReverse(state, wormIndex, dir)) return null;
   const dest = add(head, dir);
   const destCell = at(state, dest);
   if (!destCell) return null;
@@ -471,11 +479,13 @@ export function applyFledge(state: GameState, wormIndex: number, segmentIndex?: 
   if (index === undefined || !candidates.includes(index)) return null;
   const next = cloneState(state);
   const original = next.worms[wormIndex]!;
+  const previousHead = original.segments[index - 1]!;
   const segments = original.segments.slice(index);
   original.segments = original.segments.slice(0, index);
   const head = segments[0]!;
   const neck = segments[1];
-  const facing: Dir = neck ? head.x > neck.x ? "right" : head.x < neck.x ? "left" : head.y > neck.y ? "down" : "up" : original.facing;
+  const facing: Dir = neck ? head.x > neck.x ? "right" : head.x < neck.x ? "left" : head.y > neck.y ? "down" : "up"
+    : state.noReverse ? previousHead.x > head.x ? "right" : previousHead.x < head.x ? "left" : previousHead.y > head.y ? "down" : "up" : original.facing;
   const grown: Worm = { id: `w${next.nextWorm++}`, segments, facing, carrying: false };
   next.worms.push(grown);
   at(next, head)!.fixture = { kind: "roost", used: true };

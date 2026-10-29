@@ -376,3 +376,9 @@ body:has(dialog[open]) { overflow: hidden; }
   .focused-play .site-header { height: 48px; min-height: 48px; }
   .play-controls { margin-top: 10px; }
 }
+
+/* Direction is a puzzle state, including after growing and selecting a new flock. */
+.travel-arrow { position: absolute; bottom: -2%; left: 4%; width: 27%; min-width: 12px; aspect-ratio: 1; display: grid; place-items: center; font: 700 clamp(10px, 1.3vw, 17px)/1 system-ui; color: #405730; background: #fff5d9ed; border: 1px solid #7d8a53; border-radius: 50%; z-index: 4; pointer-events: none; }
+.bird:not(.is-active) .travel-arrow { opacity: .65; }
+.direction-button.reverse-locked { position: relative; color: #a0957d; background: #e9e2d2; box-shadow: inset 0 0 0 3px #f5eee0, 0 3px 0 #b8ad94; }
+.direction-button.reverse-locked:after { content: ""; position: absolute; width: 30px; height: 2px; left: 50%; top: 50%; transform: translate(-50%,-50%) rotate(-45deg); background: #a17455; border: 1px solid #f6ebd5; pointer-events: none; }

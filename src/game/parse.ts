@@ -105,6 +105,7 @@ export function parseLevel(level: Level): GameState {
   }
 
   const state: GameState = {
+    noReverse: level.noReverse,
     gentle: level.gentle,
     levelId: level.id,
     width,

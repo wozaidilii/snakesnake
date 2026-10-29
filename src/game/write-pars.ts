@@ -8,11 +8,11 @@ const levels = CAMPAIGN;
 const pars: Record<string, number> = {};
 for (const level of levels) {
   const result = solve(parseLevel(level), {
-    maxNodes: 160_000,
+    maxNodes: 250_000,
     maxMoves: 85,
   });
   if (!result.ok) {
-    console.error(`无解 ${level.id} ${level.name} ${result.reason}`);
+    console.error(`${result.reason === "budget" ? "搜索预算不足" : "已穷尽，未找到解"} ${level.id} ${level.name} ${result.reason}`);
     process.exitCode = 1;
     continue;
   }

@@ -130,11 +130,11 @@ export function Board({ state, biome, bonk, animation, onMove, onFocusWorm, onFl
           const active = worm.id === state.activeId;
           const canGrow = active && fledgeCandidates(state, state.worms.indexOf(worm)).includes(index);
           const style: CSSProperties = { width: `${100 / state.width}%`, height: `${100 / state.height}%`, left: `${point.x * 100 / state.width}%`, top: `${point.y * 100 / state.height}%`, zIndex: 10 + point.y };
-          return index === 0 ? <button type="button" key={`${worm.id}-${index}`} data-bird={`${worm.id}-${index}`} data-worm={worm.id} style={style} className={`bird mother ${worm.id !== "w0" ? "grown-hen" : ""} ${active ? "is-active" : ""}`} aria-label={worm.id === "w0" ? "带队的母鸡" : "帮忙的母鸡，点击切换"}
+          return index === 0 ? <button type="button" key={`${worm.id}-${index}`} data-bird={`${worm.id}-${index}`} data-worm={worm.id} data-facing={worm.facing} style={style} className={`bird mother ${worm.id !== "w0" ? "grown-hen" : ""} ${active ? "is-active" : ""}`} aria-label={worm.id === "w0" ? "带队的母鸡" : "帮忙的母鸡，点击切换"}
             onClick={(event) => { if (event.detail === 0) onFocusWorm(worm.id); }}>
             {active ? <span className="active-pointer" /> : null}
             <Sprite name={state.won ? "henHappy" : "hen"} className={facing === "left" ? "faces-left" : ""} />
-            <span className={`heading heading-${worm.facing}`} />
+            {state.noReverse ? <span className="travel-arrow" aria-hidden="true">{({up:"↑",down:"↓",left:"←",right:"→"})[worm.facing]}</span> : <span className={`heading heading-${worm.facing}`} />}
             {worm.carrying ? <Sprite name="egg" className="carried-egg" /> : null}
             {state.worms.length > 1 ? <span className="hen-number">{Number(worm.id.slice(1)) + 1}</span> : null}
           </button> : <button type="button" data-bird={`${worm.id}-${index}`} data-fledge={canGrow ? index : undefined} className={`bird baby ${canGrow ? "can-fledge" : ""}`} key={`${worm.id}-${index}`} style={style} disabled={!canGrow} aria-label={canGrow ? `让第 ${index} 只小鸡离群长大` : "跟随的小鸡"} onClick={(event) => { if (event.detail === 0 && canGrow) onFledge(index); }}><Sprite name={state.won ? "chickHappy" : "chick"} className={facing === "left" ? "faces-left" : ""} />{canGrow ? <span className="fledge-badge">F</span> : null}</button>;

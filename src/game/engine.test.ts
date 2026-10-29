@@ -3,6 +3,9 @@ import { test } from "node:test";
 
 import {
   applyMove,
+  isReverse,
+  legalDirs,
+  OPPOSITE,
   applySnip,
   applyFledge,
   fledgeCandidates,
@@ -85,7 +88,7 @@ test("apples grow the worm and do not move the tail", () => {
   assert.equal(step.sound, "grow");
 });
 
-test("a length-2 worm can reverse and a length-3 worm cannot", () => {
+test("legacy rules retain the length-2 reversal for archived boards", () => {
   const state = arena(7, 3);
   state.worms = [worm([{ x: 3, y: 1 }, { x: 2, y: 1 }])];
   const reversed = applyMove(state, 0, "left");
@@ -98,6 +101,58 @@ test("a length-2 worm can reverse and a length-3 worm cannot", () => {
   const long = arena(7, 3);
   long.worms = [worm([{ x: 4, y: 1 }, { x: 3, y: 1 }, { x: 2, y: 1 }])];
   assert.equal(applyMove(long, 0, "left"), null);
+});
+
+test("forward campaign blocks reversal for solo heads and two-member flocks without spending a move", () => {
+  for (const length of [1,2,3]) {
+    const state=arena(8,6); state.noReverse=true;
+    state.worms=[worm(Array.from({length},(_,i)=>({x:4-i,y:3})))];
+    const snapshot=structuredClone(state);
+    assert.equal(applyMove(state,0,"left"),null);
+    assert.equal(isReverse(state,0,"left"),true);
+    assert.equal(legalDirs(state,0).includes("left"),false);
+    assert.deepEqual(state,snapshot);
+    const turn=applyMove(state,0,"up")!;
+    assert.equal(turn.state.worms[0]!.facing,"up");
+    assert.equal(applyMove(turn.state,0,"down"),null);
+    assert.ok(applyMove(turn.state,0,"left"),"two successive side turns face the opposite direction with real space");
+  }
+});
+
+test("hitting a wall cannot rotate a head to bypass the no-reverse rule", () => {
+  const state=arena(6,3);state.noReverse=true;state.worms=[worm([{x:2,y:1}])];
+  assert.equal(applyMove(state,0,"up"),null);
+  assert.equal(state.worms[0]!.facing,"right");
+  assert.equal(applyMove(state,0,"left"),null);
+  assert.equal(state.moves,0);
+});
+
+test("growing and switching preserve heading, and a fledged tail faces its own former leader", () => {
+  const state=arena(8,6);state.gentle=true;state.noReverse=true;
+  state.worms=[worm([{x:4,y:2},{x:3,y:2},{x:3,y:3}])];
+  put(state,{x:3,y:3},{fixture:{kind:"roost",used:false}});
+  const split=applyFledge(state,0,2)!.state;
+  assert.equal(split.worms[0]!.facing,"right");
+  assert.equal(split.worms[1]!.facing,"up");
+  assert.equal(applyMove({...split,activeId:"w0"},1,"down"),null);
+  assert.equal(applyMove({...split,activeId:"w1"},0,"left"),null);
+  assert.equal(split.moves,1);
+  const grown=arena(6,4);grown.noReverse=true;grown.worms=[worm([{x:2,y:2}])];
+  put(grown,{x:3,y:2},{pickup:{kind:"apple"}});
+  const ate=applyMove(grown,0,"right")!.state;
+  assert.equal(ate.worms[0]!.segments.length,2);
+  assert.equal(applyMove(ate,0,"left"),null);
+});
+
+test("solver distinguishes opposite headings at the same square", () => {
+  const start=parseLevel({id:"heading",name:"heading",world:"soil",hint:"",gentle:true,noReverse:true,rows:["######","#0.GX#","######"]});
+  const opposite=structuredClone(start);opposite.worms[0]!.facing="left";
+  assert.notEqual(hashState(start),hashState(opposite));
+  assert.equal(solve(start).ok,true);
+  assert.equal(solve(opposite).reason,"stuck");
+  const restored=structuredClone(start);
+  assert.equal(restored.worms[0]!.facing,"right");
+  assert.equal(OPPOSITE[restored.worms[0]!.facing],"left");
 });
 
 test("rocks open doors and cannot be pushed into walls", () => {
@@ -278,9 +333,11 @@ test("every campaign level parses and has a solution", { timeout: 300_000 }, () 
     try {
       const start = parseLevel(level);
       const needHat = level.rows.some((row) => row.includes("H"));
-      const result = solve(start, { needHat, maxNodes: 160_000, maxMoves: 85 });
+      assert.equal(start.noReverse, true, `${level.id}: campaign must require forward movement`);
+      const result = solve(start, { needHat, maxNodes: 400_000, maxMoves: 85 });
       if (!result.ok) {
         failures.push(`${level.id} ${result.reason} nodes=${result.nodes}`);
+        continue;
       }
       const shortest = solve(start);
       assert.equal(shortest.moves, level.par, `${level.id}: stale par`);
@@ -288,6 +345,7 @@ test("every campaign level parses and has a solution", { timeout: 300_000 }, () 
       for (const action of result.path) {
         const step = replayAction(replay, action);
         assert.ok(step, `${level.id}: illegal solution step`);
+        if (action.dir !== "fledge" && action.dir !== "snip") assert.equal(isReverse(replay, replay.worms.findIndex(w=>w.id===action.wormId), action.dir), false, `${level.id}: solution reversed`);
         assert.equal(step.state.lost, null);
         assert.ok(step.state.worms.reduce((n, w) => n + w.segments.length, 0) >= start.worms.reduce((n, w) => n + w.segments.length, 0), `${level.id}: flock lost`);
         replay = step.state;
@@ -298,6 +356,25 @@ test("every campaign level parses and has a solution", { timeout: 300_000 }, () 
     }
   }
   assert.deepEqual(failures, []);
+});
+
+test("the four-cell harvest loop must be visited before growing to five members", () => {
+  const start = parseLevel(getLevel("flock-26-r3")!);
+  assert.equal(start.worms[0]!.segments.length, 4);
+  const grown = applyMove(applyMove(start, 0, "up")!.state, 0, "up")!.state;
+  assert.equal(grown.worms[0]!.segments.length, 5);
+  assert.equal(solve(grown).reason, "stuck", "early growth must block the harvest, not just lengthen the route");
+  const route = solve(start);
+  assert.equal(route.ok, true);
+  let state = start;
+  for (const action of route.path) {
+    const next = replayAction(state, action)!.state;
+    if (next.worms[0]!.segments.length > state.worms[0]!.segments.length) {
+      assert.equal(state.cells[1 * state.width + 1]!.pickup, undefined, "left harvest comes before growth");
+    }
+    state = next;
+  }
+  assert.equal(state.won, true);
 });
 
 test("farm gates stay open while the flock passes, then close without cutting", () => {
@@ -380,7 +457,7 @@ test("fledging is explicit, excludes the mother and supports choosing among chic
 });
 
 test("water motion records every bend and never teleports through the flock", () => {
-  const state = parseLevel(LEVELS.find((l) => l.id === "flock-19")!);
+  const state = parseLevel(getLevel("flock-19-r3")!);
   const step = applyMove(state, 0, "right")!;
   assert.ok(step);
   assert.deepEqual(step.motion?.[0]?.path, [{ x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }, { x: 4, y: 2 }, { x: 4, y: 3 }]);
@@ -388,8 +465,8 @@ test("water motion records every bend and never teleports through the flock", ()
 });
 
 test("planning puzzles require repositioning and a genuine gate handoff", () => {
-  for (const id of ["flock-05", "flock-06", "flock-14", "flock-20", "flock-23"]) {
-    let state = parseLevel(LEVELS.find((l) => l.id === id)!);
+  for (const id of ["flock-05-r3", "flock-06-r3", "flock-14-r3", "flock-20-r3", "flock-23-r3"]) {
+    let state = parseLevel(getLevel(id)!);
     const route = solve(state).path;
     const directions = new Set<string>(); let pushes = 0;
     for (const action of route) {
@@ -399,7 +476,7 @@ test("planning puzzles require repositioning and a genuine gate handoff", () => 
     }
     assert.ok(pushes >= 4 && directions.size >= 3, `${id}: crate puzzle became a straight push`);
   }
-  const handoff = solve(parseLevel(LEVELS.find((l) => l.id === "flock-07")!)).path;
+  const handoff = solve(parseLevel(getLevel("flock-07-r3")!)).path;
   let previous = "w0", switches = 0;
   for (const action of handoff) { if (previous !== action.wormId) switches++; previous = action.wormId; }
   assert.ok(switches >= 4, "two gates must require handing control back and forth");
@@ -465,20 +542,20 @@ test("chapter keepsakes and recommended routes do not demand optional challenges
   assert.equal(progress.perfect,false);
   assert.equal(progress.mastered,0);
   assert.equal(progress.challenges,0);
-  assert.equal(continueJourney(core.at(-1)!.id,save),"flock-35");
-  assert.equal(recommendedLevel(save,"orchard"),"flock-34");
-  assert.equal(recommendedLevel(emptySave),"flock-01");
+  assert.equal(continueJourney(core.at(-1)!.id,save),"flock-35-r3");
+  assert.equal(recommendedLevel(save,"orchard"),"flock-34-r3");
+  assert.equal(recommendedLevel(emptySave),"flock-01-r3");
   const all={...emptySave,cleared:LEVELS.map(l=>l.id),best:LEVELS.map(l=>({id:l.id,moves:l.par!}))};
   assert.equal(recommendedLevel(all),null);
-  assert.equal(continueJourney("flock-40-r2",all),null);
+  assert.equal(continueJourney("flock-40-r3",all),null);
   assert.equal(chapterProgress("pond",all).perfect,true);
 });
 
 test("the authored sequence teaches each rule before its combinations", () => {
   const firstEgg=LEVELS.find(l=>l.rows.join("").includes("E"))!;
   const firstFledge=LEVELS.find(l=>l.rows.join("").includes("S"))!;
-  assert.equal(firstEgg.id,"flock-03");
-  assert.equal(firstFledge.id,"flock-04");
+  assert.equal(firstEgg.id,"flock-03-r3");
+  assert.equal(firstFledge.id,"flock-04-r3");
   for(const mechanic of ["grow","push","fledge","water","bell","bridge"] as const) {
     assert.equal(LEVELS.find(l=>l.requires?.includes(mechanic))?.tutorial,true,mechanic);
   }
@@ -486,13 +563,13 @@ test("the authored sequence teaches each rule before its combinations", () => {
 });
 
 test("bell parity requires three rings", () => {
-  let state=parseLevel(getLevel("flock-30")!); let rings=0;
+  let state=parseLevel(getLevel("flock-30-r3")!); let rings=0;
   for(const action of solve(state).path) { const step=replayAction(state,action)!; if(step.state.flips.red!==state.flips.red) rings++; state=step.state; }
   assert.equal(rings,3);
 });
 
 test("the bridge loop needs four continuous occupants, not just visiting a bridge", () => {
-  const level=getLevel("flock-36-r2")!;
+  const level=getLevel("flock-36-r3")!;
   const short=parseLevel({...level,rows:level.rows.map(row=>row.replace("A","."))});
   assert.equal(solve(short).reason,"stuck");
   let unprepared=parseLevel(level);
@@ -512,8 +589,8 @@ test("the bridge loop needs four continuous occupants, not just visiting a bridg
 });
 
 test("the orchard delivery requires opening the bell route before picking up the egg", () => {
-  const initial=parseLevel(getLevel("flock-32-r2")!);
-  const tooSoon=applyMove(initial,0,"left")!;
+  const initial=parseLevel(getLevel("flock-32-r3")!);
+  const tooSoon=applyMove(applyMove(applyMove(initial,0,"down")!.state,0,"left")!.state,0,"up")!;
   assert.equal(tooSoon.state.worms[0]!.carrying,true);
   assert.equal(solve(tooSoon.state).reason,"stuck");
   const opened=applyMove(applyMove(initial,0,"down")!.state,0,"right")!;
@@ -523,7 +600,7 @@ test("the orchard delivery requires opening the bell route before picking up the
 });
 
 test("two deliveries require both leaders, and the finale reserves a third crossing", () => {
-  for(const id of ["flock-38-r2","flock-40-r2"]) {
+  for(const id of ["flock-38-r3","flock-40-r3"]) {
     let state=parseLevel(getLevel(id)!); const deliveredBy=new Set<string>();
     const count=(s:GameState)=>s.cells.filter(c=>c.fixture?.kind==="nest"&&c.fixture.filled).length;
     for(const action of solve(state).path) {
@@ -533,12 +610,12 @@ test("two deliveries require both leaders, and the finale reserves a third cross
     }
     assert.equal(state.won,true);
     assert.deepEqual([...deliveredBy].sort(),["w0","w1"]);
-    assert.equal(state.cells.filter(c=>c.fixture?.kind==="bridge"&&c.fixture.collapsed).length,id==="flock-40-r2"?3:2);
+    assert.equal(state.cells.filter(c=>c.fixture?.kind==="bridge"&&c.fixture.collapsed).length,id==="flock-40-r3"?3:2);
   }
 });
 
 test("the crate bridge puzzle punishes using the return bridge before shipping the crate", () => {
-  const initial=parseLevel(getLevel("flock-39-r2")!);
+  const initial=parseLevel(getLevel("flock-39-r3")!);
   let state=initial;
   for(const dir of ["down","down","right","right","right"] as const) state=applyMove(state,0,dir)!.state;
   assert.equal(solve(state).reason,"stuck");
@@ -555,10 +632,10 @@ test("the crate bridge puzzle punishes using the return bridge before shipping t
 });
 
 test("revised geometry keeps old records separate while resuming the corresponding board", () => {
-  assert.equal(getLevel("flock-40")?.id,"flock-40-r2");
-  assert.equal(getLevel("flock-36")?.id,"flock-36-r2");
-  const previous={...emptySave,cleared:["flock-35","flock-36","flock-38","flock-39","flock-40"],best:[{id:"flock-40",moves:1}]};
-  assert.equal(chapterProgress("pond",previous).done,1);
+  assert.equal(getLevel("flock-40-r2")?.id,"flock-40-r3");
+  assert.equal(getLevel("flock-36")?.id,"flock-36-r3");
+  const previous={...emptySave,cleared:["flock-35","flock-36-r2","flock-38-r2","flock-39-r2","flock-40-r2"],best:[{id:"flock-40-r2",moves:1}]};
+  assert.equal(chapterProgress("pond",previous).done,0);
   assert.equal(chapterProgress("pond",previous).mastered,0);
-  assert.equal(recommendedLevel(previous,"pond"),"flock-36-r2");
+  assert.equal(recommendedLevel(previous,"pond"),"flock-35-r3");
 });

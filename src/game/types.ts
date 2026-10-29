@@ -45,6 +45,8 @@ export type Worm = {
 };
 
 export type GameState = {
+  /** A head may move forward or turn sideways, never reverse in place. */
+  noReverse?: boolean;
   /** Farm campaign gates wait for the entire flock to pass safely. */
   gentle?: boolean;
   levelId: string;
@@ -92,6 +94,7 @@ export type StepResult = {
 export type WorldId = "soil" | "runnel" | "nursery" | "shear" | "orchard" | "pond";
 
 export type Level = {
+  noReverse?: boolean;
   gentle?: boolean;
   hints?: string[];
   insight?: string;

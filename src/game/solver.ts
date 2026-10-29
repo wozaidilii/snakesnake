@@ -9,7 +9,7 @@ export function hashState(state: GameState): string {
     const mutable = `${cell.terrain === "dirt" ? "," : ""}${cell.pickup?.kind[0] ?? ""}${f?.kind === "nest" ? f.filled ? "n" : "N" : f?.kind === "roost" ? f.used ? "s" : "S" : f?.kind === "bridge" ? f.collapsed ? "~" : "=" : f?.kind === "lock" ? "L" : ""}`;
     if (mutable) hash += `${i.toString(36)}:${mutable};`;
   });
-  return hash + state.worms.map((worm) => `${state.gentle ? worm.id : ""}:${+worm.carrying}:${worm.segments.map((p) => (p.y * state.width + p.x).toString(36)).join(".")}`).sort().join("|");
+  return hash + state.worms.map((worm) => `${state.gentle ? worm.id : ""}:${state.noReverse ? worm.facing : ""}:${+worm.carrying}:${worm.segments.map((p) => (p.y * state.width + p.x).toString(36)).join(".")}`).sort().join("|");
 }
 
 export type Action = { wormId: string; dir: Dir | "snip" | "fledge"; segmentIndex?: number };
@@ -21,7 +21,7 @@ export function replayAction(state: GameState, action: Action): StepResult | nul
 export type SolveResult = { ok: boolean; reason: "solved" | "stuck" | "budget"; nodes: number; moves: number; path: Action[] };
 export type SolveOptions = { needHat?: boolean; maxNodes?: number; maxMoves?: number; forbid?: NonNullable<Level["requires"]>[number] };
 export function solve(start: GameState, options: SolveOptions = {}): SolveResult {
-  const maxNodes = options.maxNodes ?? 250_000;
+  const maxNodes = options.maxNodes ?? 400_000;
   const maxMoves = options.maxMoves ?? 150;
   type Node = { state?: GameState; parent: number; action?: Action };
   const queue: Node[] = [{ state: start, parent: -1 }];
