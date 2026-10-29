@@ -260,7 +260,7 @@ export function GameApp() {
         <div className="move-counter"><strong>{state.moves}</strong><span>步</span></div>
       </div>
       <div className="quest-strip" aria-label="本关目标">
-        <span className={remainingBerries === 0 ? "complete" : ""} title="收齐蓝李"><Sprite name="berries" /><span>蓝李 {totalBerries - remainingBerries}/{totalBerries}</span></span>
+        {totalBerries ? <span className={remainingBerries === 0 ? "complete" : ""} title="收齐蓝李"><Sprite name="berries" /><span>蓝李 {totalBerries - remainingBerries}/{totalBerries}</span></span> : null}
         {totalEggs > 0 ? <span className={delivered === totalEggs ? "complete" : ""} title="把鸡蛋送进空篮子"><Sprite name="egg" /><span>送蛋 {delivered}/{totalEggs}</span></span> : null}
         <span className={goalsReady(state) ? "complete" : ""}><Sprite name="sign" /><span>{state.won ? "到家啦" : "1 号归巢"}</span></span>
         <span className="active-team" title="领队朝向：只能前进或侧转，不能直接掉头">{ARROWS[leader.facing]} {state.worms.length > 1 ? `${Number(state.activeId.slice(1)) + 1} 号` : "朝向"}</span>

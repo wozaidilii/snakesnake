@@ -101,18 +101,20 @@ export function doorIsOpen(
   return isPressed(state, door.color);
 }
 
+/** A door opens only while every button of its color is held down. */
 export function isPressed(state: GameState, color: Color): boolean {
+  let any = false;
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
       const cell = state.cells[y * state.width + x];
       if (cell?.fixture?.kind !== "button" || cell.fixture.color !== color) {
         continue;
       }
-      if (cell.pickup?.kind === "rock") return true;
-      if (findSeg(state, { x, y })) return true;
+      if (cell.pickup?.kind !== "rock" && !findSeg(state, { x, y })) return false;
+      any = true;
     }
   }
-  return false;
+  return any;
 }
 
 export function goalsReady(state: GameState): boolean {
