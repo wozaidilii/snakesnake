@@ -28,6 +28,17 @@ function BoardEffects({ animation, width, height }: { animation: BoardAnimation 
   })}</>;
 }
 
+/** Fences join toward neighbouring fences and gates, so a run of walls reads as one continuous barrier. */
+function fenceLinks(state: GameState, x: number, y: number): string {
+  const wall = (dx: number, dy: number) => {
+    const nx = x + dx, ny = y + dy;
+    const cell = nx >= 0 && ny >= 0 && nx < state.width && ny < state.height ? state.cells[ny * state.width + nx] : undefined;
+    return cell?.terrain === "wall" || cell?.fixture?.kind === "door";
+  };
+  const links = [wall(0, -1) && "link-n", wall(1, 0) && "link-e", wall(0, 1) && "link-s", wall(-1, 0) && "link-w"].filter(Boolean);
+  return links.length ? links.join(" ") : "fence-alone";
+}
+
 function label(cell: Cell): string {
   if (cell.fixture?.kind === "bridge") return cell.fixture.collapsed ? "荷叶已收起，撤销可恢复" : "荷叶桥，最后一位离开后收起";
   if (cell.terrain === "wall") return "木篱笆";
@@ -106,9 +117,9 @@ export function Board({ state, biome, bonk, animation, onMove, onFocusWorm, onFl
           const pickup = cell.pickup;
           const item: SpriteName | undefined = pickup?.kind === "gold" ? "berries" : pickup?.kind === "apple" ? "corn" : pickup?.kind === "egg" ? "egg" : undefined;
           return <div key={i} title={label(cell)} data-cell={`${x},${y}`} data-kind={pickup?.kind ?? fixture?.kind ?? cell.terrain}
-            className={`tile ${cell.terrain} ${edge ? "edge" : ""} ${cell.terrain === "wall" && (x === 0 || x === state.width - 1) ? "vertical-fence" : ""} ${fixture?.kind ?? ""} ${fixture?.kind === "roost" && fixture.used ? "roost-used" : ""} ${fixture?.kind === "nest" && fixture.filled ? "nest-filled" : ""} ${open || pressed ? "activated" : ""} ${fixture?.kind === "exit" && ready ? "home-ready" : ""} variation-${(x * 7 + y * 3) % 4}`}>
+            className={`tile ${cell.terrain} ${edge ? "edge" : ""} ${cell.terrain === "wall" ? fenceLinks(state, x, y) : ""} ${fixture?.kind ?? ""} ${fixture?.kind === "roost" && fixture.used ? "roost-used" : ""} ${fixture?.kind === "nest" && fixture.filled ? "nest-filled" : ""} ${open || pressed ? "activated" : ""} ${fixture?.kind === "exit" && ready ? "home-ready" : ""} variation-${(x * 7 + y * 3) % 4}`}>
             {cell.terrain === "floor" && !fixture && !pickup && (x * 13 + y * 7) % 17 === 0 ? <span className="tiny-flower" aria-hidden="true">✿</span> : null}
-            {cell.terrain === "wall" ? <div className="fence-art" aria-hidden="true"><i /><i /><b /><b /></div> : null}
+            {cell.terrain === "wall" ? <div className="fence-art" aria-hidden="true"><i className="rail-h" /><i className="rail-v" /><b /></div> : null}
             {cell.terrain === "water" && cell.flow ? <span className="flow" aria-hidden="true">{({ up: "↑", down: "↓", left: "←", right: "→" })[cell.flow]}</span> : null}
             {sprite ? <Sprite name={sprite} className="tile-fixture" /> : null}
             {fixture?.kind === "exit" ? <span className="home-label">回家</span> : null}
